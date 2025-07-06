@@ -1,9 +1,13 @@
 const std = @import("std");
 const expect = std.testing.expect;
 const process = std.process;
-const disassembler = @import("main.zig");
+const disassembler = @import("disassembler");
 
-pub fn spawnShellProcess(allocator: std.mem.Allocator, command: []const []const u8) ![]const u8 {
+comptime {
+    _ = @import("mov.zig");
+}
+
+fn spawnShellProcess(allocator: std.mem.Allocator, command: []const []const u8) ![]const u8 {
     var child = std.process.Child.init(command, allocator);
     child.stdout_behavior = .Pipe;
     child.stderr_behavior = .Pipe;
@@ -44,15 +48,11 @@ fn assemble(allocator: std.mem.Allocator, assembly: []const u8) ![]const u8 {
     return assembled;
 }
 
-fn assertInstructionDisassembly(assembly: []const u8) !void {
+pub fn assertInstructionDisassembly(assembly: []const u8) !void {
     const assembled = try assemble(std.testing.allocator, assembly);
     defer std.testing.allocator.free(assembled);
 
     const inst = try disassembler.nextInstruction(assembled, 0);
     const disassambled_inst = inst.str;
     try std.testing.expectEqualStrings(assembly, disassambled_inst);
-}
-
-test "mov reg to reg" {
-    try assertInstructionDisassembly("mov ax, bx");
 }
