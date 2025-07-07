@@ -1,17 +1,16 @@
 const std = @import("std");
 const stdout = std.io.getStdOut();
-const allocator = std.heap.page_allocator;
 
-pub fn disassemble(data: []const u8) !void {
+pub fn disassemble(allocator: std.mem.Allocator, data: []const u8) !void {
     try stdout.writeAll("bits 16\n");
-    const inst = try nextInstruction(data, 0);
-    defer inst.deinit();
+    const inst = try nextInstruction(allocator, data, 0);
+    defer inst.deinit(allocator);
     try inst.print();
 }
 
-fn getRegName(val: u8, w: bool) [2]u8 {
-    const table_w0 = [8][2]u8{ .{ 'a', 'l' }, .{ 'c', 'l' }, .{ 'd', 'l' }, .{ 'b', 'l' }, .{ 'a', 'h' }, .{ 'c', 'h' }, .{ 'd', 'h' }, .{ 'b', 'h' } };
-    const table_w1 = [8][2]u8{ .{ 'a', 'x' }, .{ 'c', 'x' }, .{ 'd', 'x' }, .{ 'b', 'x' }, .{ 's', 'p' }, .{ 'b', 'p' }, .{ 's', 'i' }, .{ 'd', 'i' } };
+fn getRegName(val: u8, w: bool) []const u8 {
+    const table_w0 = [8][]const u8{ "al", "cl", "dl", "bl", "ah", "ch", "dh", "bh" };
+    const table_w1 = [8][]const u8{ "ax", "cx", "dx", "bx", "sp", "bp", "si", "di" };
 
     if (w) {
         return table_w1[val];
@@ -22,19 +21,23 @@ fn getRegName(val: u8, w: bool) [2]u8 {
 
 const InstructionReturn = struct {
     len: usize,
-    str: []const u8,
+    str: []u8,
 
     fn print(self: *const InstructionReturn) !void {
         try stdout.writeAll(self.str);
         try stdout.writeAll("\n");
     }
 
-    fn deinit(self: *const InstructionReturn) !void {
+    pub fn deinit(self: *const InstructionReturn, allocator: std.mem.Allocator) void {
         allocator.free(self.str);
     }
 };
 
-pub fn nextInstruction(data: []const u8, at: usize) !InstructionReturn {
+// fn mov_like_parse_3(allocator: std.mem.Allocator, name: []const u8) !InstructionReturn{
+//
+// }
+
+pub fn nextInstruction(allocator: std.mem.Allocator, data: []const u8, at: usize) !InstructionReturn {
     // std.debug.print("{b} {b}\n", .{ data[0], data[1] });
 
     const b1 = data[at];
@@ -56,7 +59,8 @@ pub fn nextInstruction(data: []const u8, at: usize) !InstructionReturn {
 
         if (mod == 0b11) { // mov register-to-register
             std.debug.assert(mov_type_1);
-            return InstructionReturn{ .len = 2, .str = try std.fmt.allocPrint(allocator, "mov {s}, {s}", .{ getRegName(rm, w), getRegName(reg, w) }) };
+            const str = try std.fmt.allocPrint(allocator, "mov {s}, {s}", .{ getRegName(rm, w), getRegName(reg, w) });
+            return InstructionReturn{ .len = 2, .str = str };
         }
 
         const register_table = [8][2][2]u8{
@@ -74,9 +78,14 @@ pub fn nextInstruction(data: []const u8, at: usize) !InstructionReturn {
 
         var part1: []const u8 = undefined;
         var part2: []const u8 = undefined;
+        var free_part1 = false;
+        var free_part2 = true;
+        defer if (free_part1) allocator.free(part1);
+        defer if (free_part2) allocator.free(part2);
+
         var len: usize = undefined;
 
-        if (mov_type_1) part1 = &getRegName(reg, w);
+        if (mov_type_1) part1 = getRegName(reg, w);
         if (mod == 0b00) {
             if (rm == 0b110) {
                 len = 4;
@@ -119,6 +128,8 @@ pub fn nextInstruction(data: []const u8, at: usize) !InstructionReturn {
 
         if (mov_type_2) {
             part1 = part2;
+            free_part1 = true;
+
             var value: u16 = undefined;
             if (rm == 0b11) {
                 const b3: u16 = data[at + 2];
@@ -136,6 +147,8 @@ pub fn nextInstruction(data: []const u8, at: usize) !InstructionReturn {
             const temp = part2;
             part2 = part1;
             part1 = temp;
+            free_part1 = true;
+            free_part2 = false;
         }
 
         return InstructionReturn{ .len = len, .str = try std.fmt.allocPrint(allocator, "mov {s}, {s}", .{ part1, part2 }) };
@@ -160,13 +173,18 @@ pub fn nextInstruction(data: []const u8, at: usize) !InstructionReturn {
 
         var part1: []const u8 = if (w) "ax" else "al";
         var part2: []const u8 = try std.fmt.allocPrint(allocator, "[{d}]", .{value});
+        var free_part1 = false;
+        var free_part2 = true;
+        defer if (free_part1) allocator.free(part1);
+        defer if (free_part2) allocator.free(part2);
 
         if (b1 & 0b11111110 == 0b10100010) {
             const temp = part2;
             part2 = part1;
             part1 = temp;
+            free_part1 = true;
+            free_part2 = false;
         }
-
         return InstructionReturn{ .len = 3, .str = try std.fmt.allocPrint(allocator, "mov {s}, {s}", .{ part1, part2 }) };
     } else unreachable;
 }
