@@ -48,6 +48,10 @@ test "mov signed displacements" {
 test "mov explicit sizes" {
     try testing.assertInstructionDisassembly("mov [bp + di], byte 7");
     try testing.assertInstructionDisassembly("mov [di + 901], word 347");
+    try testing.assertInstructionDisassembly("mov [bx], byte 34");
+    try testing.assertInstructionDisassembly("mov [bp + si + 1000], word 29");
+    try testing.assertInstructionDisassembly("mov [4834], byte 29");
+    try testing.assertInstructionDisassembly("mov [4834], word 29");
 }
 
 test "mov direct address" {

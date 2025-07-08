@@ -5,9 +5,9 @@ const disassembler = @import("disassembler");
 
 comptime {
     _ = @import("mov.zig");
-    // _ = @import("add.zig");
-    // _ = @import("sub.zig");
-    // _ = @import("cmp.zig");
+    _ = @import("add.zig");
+    _ = @import("sub.zig");
+    _ = @import("cmp.zig");
 }
 
 fn spawnShellProcess(allocator: std.mem.Allocator, command: []const []const u8) ![]const u8 {
@@ -52,6 +52,7 @@ fn assemble(allocator: std.mem.Allocator, assembly: []const u8) ![]const u8 {
 }
 
 pub fn assertInstructionDisassembly(assembly: []const u8) !void {
+    // std.debug.print("\n{s}\n", .{assembly});
     const allocator = std.testing.allocator;
     const assembled = try assemble(allocator, assembly);
     defer std.testing.allocator.free(assembled);
