@@ -1,6 +1,8 @@
 const std = @import("std");
 const stdout = std.io.getStdOut();
 
+pub const debug = false;
+
 pub fn disassemble(allocator: std.mem.Allocator, data: []const u8) !void {
     try stdout.writeAll("bits 16\n");
     const inst = try nextInstruction(allocator, data, 0);
@@ -19,7 +21,7 @@ fn get_reg_name(val: u8, w: bool) []const u8 {
     }
 }
 
-const InstructionReturn = struct {
+pub const InstructionReturn = struct {
     len: usize,
     str: []u8,
 
@@ -156,8 +158,10 @@ fn mov_like(allocator: std.mem.Allocator, data: []const u8, at: usize, name: []c
 
             if (mod == 0b00 and rm != 0b110) {
                 value = get_value(data, at + 2, wide);
+                len = @max(len, 3 + @as(usize, @intFromBool(wide)));
             } else {
                 value = get_value(data, at + 4, wide);
+                len = @max(len, 5 + @as(usize, @intFromBool(wide)));
             }
         }
         part2 = try std.fmt.allocPrint(allocator, "{s} {d}", .{ if (w) "word" else "byte", value });
@@ -176,20 +180,25 @@ fn arithmetic_immediate_from_accumulator(allocator: std.mem.Allocator, data: []c
     const b1 = data[at];
     const w: bool = (b1 & 0b00000001) == 1;
     const value = get_value(data, at + 1, w);
-    return InstructionReturn{ .len = 3, .str = try std.fmt.allocPrint(allocator, "{s} {s}, {d}", .{ name, get_reg_name(0, w), value }) };
+    return InstructionReturn{ .len = if (w) 3 else 2, .str = try std.fmt.allocPrint(allocator, "{s} {s}, {d}", .{ name, get_reg_name(0, w), value }) };
+}
+
+fn conditional_jump(allocator: std.mem.Allocator, data: []const u8, at: usize, name: []const u8) !InstructionReturn {
+    const b2: i8 = @bitCast(data[at + 1]);
+    return InstructionReturn{ .len = 2, .str = try std.fmt.allocPrint(allocator, "{s} {d}", .{ name, b2 }) };
 }
 
 pub fn nextInstruction(allocator: std.mem.Allocator, data: []const u8, at: usize) !InstructionReturn {
-    // std.debug.print("{b:8} {b:8}\n", .{ data[0], data[1] });
-
-    // for (data) |byte| {
-    //     std.debug.print("{b:->8} ", .{byte});
-    // }
-    // std.debug.print("\n", .{});
-    // for (data) |byte| {
-    //     std.debug.print("{d:->8} ", .{byte});
-    // }
-    // std.debug.print("\n", .{});
+    if (debug) {
+        for (data) |byte| {
+            std.debug.print("{b:->8} ", .{byte});
+        }
+        std.debug.print("\n", .{});
+        for (data) |byte| {
+            std.debug.print("{d:->8} ", .{byte});
+        }
+        std.debug.print("\n", .{});
+    }
 
     const b1 = data[at];
 
@@ -237,5 +246,45 @@ pub fn nextInstruction(allocator: std.mem.Allocator, data: []const u8, at: usize
         return mov_like(allocator, data, at, "cmp", true, false);
     } else if (b1 & 0b11111110 == 0b00111100) {
         return arithmetic_immediate_from_accumulator(allocator, data, at, "cmp");
+    } else if (b1 == 0b01110100) {
+        return conditional_jump(allocator, data, at, "je");
+    } else if (b1 == 0b01111100) {
+        return conditional_jump(allocator, data, at, "jl");
+    } else if (b1 == 0b01111110) {
+        return conditional_jump(allocator, data, at, "jle");
+    } else if (b1 == 0b01110010) {
+        return conditional_jump(allocator, data, at, "jb");
+    } else if (b1 == 0b01110110) {
+        return conditional_jump(allocator, data, at, "jbe");
+    } else if (b1 == 0b01111010) {
+        return conditional_jump(allocator, data, at, "jp");
+    } else if (b1 == 0b01110000) {
+        return conditional_jump(allocator, data, at, "jo");
+    } else if (b1 == 0b01111000) {
+        return conditional_jump(allocator, data, at, "js");
+    } else if (b1 == 0b01110101) {
+        return conditional_jump(allocator, data, at, "jne");
+    } else if (b1 == 0b01111101) {
+        return conditional_jump(allocator, data, at, "jnl");
+    } else if (b1 == 0b01111111) {
+        return conditional_jump(allocator, data, at, "jnle");
+    } else if (b1 == 0b01110011) {
+        return conditional_jump(allocator, data, at, "jnb");
+    } else if (b1 == 0b01110111) {
+        return conditional_jump(allocator, data, at, "jnbe");
+    } else if (b1 == 0b01111011) {
+        return conditional_jump(allocator, data, at, "jnp");
+    } else if (b1 == 0b01110001) {
+        return conditional_jump(allocator, data, at, "jno");
+    } else if (b1 == 0b01111001) {
+        return conditional_jump(allocator, data, at, "jns");
+    } else if (b1 == 0b11100010) {
+        return conditional_jump(allocator, data, at, "loop");
+    } else if (b1 == 0b11100001) {
+        return conditional_jump(allocator, data, at, "loopz");
+    } else if (b1 == 0b011100000) {
+        return conditional_jump(allocator, data, at, "loopnz");
+    } else if (b1 == 0b11100011) {
+        return conditional_jump(allocator, data, at, "jcxz");
     } else unreachable;
 }

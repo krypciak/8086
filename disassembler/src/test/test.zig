@@ -7,7 +7,7 @@ comptime {
     _ = @import("mov.zig");
     _ = @import("add.zig");
     _ = @import("sub.zig");
-    _ = @import("cmp.zig");
+    _ = @import("jumps.zig");
 }
 
 fn spawnShellProcess(allocator: std.mem.Allocator, command: []const []const u8) ![]const u8 {
@@ -43,6 +43,7 @@ fn assemble(allocator: std.mem.Allocator, assembly: []const u8) ![]const u8 {
     const tmp_file = try std.fs.cwd().openFile(tmp_file_path, .{ .mode = .write_only });
 
     try tmp_file.writeAll("bits 16\n");
+    try tmp_file.writeAll("label:\n");
     try tmp_file.writeAll(assembly);
     tmp_file.close();
 
@@ -51,15 +52,25 @@ fn assemble(allocator: std.mem.Allocator, assembly: []const u8) ![]const u8 {
     return assembled;
 }
 
-pub fn assertInstructionDisassembly(assembly: []const u8) !void {
-    // std.debug.print("\n{s}\n", .{assembly});
-    const allocator = std.testing.allocator;
+fn assembleAndDisassemble(allocator: std.mem.Allocator, assembly: []const u8) !disassembler.InstructionReturn {
+    if (disassembler.debug) std.debug.print("\n{s}\n", .{assembly});
     const assembled = try assemble(allocator, assembly);
-    defer std.testing.allocator.free(assembled);
+    defer allocator.free(assembled);
 
     const inst = try disassembler.nextInstruction(allocator, assembled, 0);
-    defer inst.deinit(allocator); 
+    return inst;
+}
 
-    const disassambled_inst = inst.str;
-    try std.testing.expectEqualStrings(assembly, disassambled_inst);
+pub fn assertInstructionDisassembly(assembly: []const u8) !void {
+    const allocator = std.testing.allocator;
+    const inst = try assembleAndDisassemble(allocator, assembly);
+    defer inst.deinit(allocator);
+    try std.testing.expectEqualStrings(assembly, inst.str);
+}
+
+pub fn assertInstructionDisassemblyToEqual(assembly: []const u8, expected: []const u8) !void {
+    const allocator = std.testing.allocator;
+    const inst = try assembleAndDisassemble(allocator, assembly);
+    defer inst.deinit(allocator);
+    try std.testing.expectEqualStrings(expected, inst.str);
 }
