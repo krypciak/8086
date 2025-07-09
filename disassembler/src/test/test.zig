@@ -5,9 +5,9 @@ const disassembler = @import("disassembler");
 
 comptime {
     _ = @import("mov.zig");
-    _ = @import("add.zig");
-    _ = @import("sub.zig");
-    _ = @import("jumps.zig");
+    // _ = @import("add.zig");
+    // _ = @import("sub.zig");
+    // _ = @import("jumps.zig");
 }
 
 fn spawnShellProcess(allocator: std.mem.Allocator, command: []const []const u8) ![]const u8 {
@@ -16,10 +16,11 @@ fn spawnShellProcess(allocator: std.mem.Allocator, command: []const []const u8) 
     child.stderr_behavior = .Pipe;
     try child.spawn();
 
-    var child_stdout = try std.ArrayListUnmanaged(u8).initCapacity(allocator, 100);
-    var child_stderr = try std.ArrayListUnmanaged(u8).initCapacity(allocator, 100);
+    const capacity = 1000;
+    var child_stdout = try std.ArrayListUnmanaged(u8).initCapacity(allocator, capacity);
+    var child_stderr = try std.ArrayListUnmanaged(u8).initCapacity(allocator, capacity);
 
-    try child.collectOutput(allocator, &child_stdout, &child_stderr, 100);
+    try child.collectOutput(allocator, &child_stdout, &child_stderr, capacity);
 
     const stdout_str = try child_stdout.toOwnedSlice(allocator);
     const stderr_str = try child_stderr.toOwnedSlice(allocator);

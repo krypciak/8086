@@ -1,19 +1,23 @@
 const std = @import("std");
-const stdout = std.io.getStdOut();
 
-pub const debug = true;
+pub const debug = false;
 
 pub fn disassemble(allocator: std.mem.Allocator, data: []const u8, no_bits: bool) ![]const u8 {
-    if (no_bits) try stdout.writeAll("bits 16\n");
-
     var instruction_list = std.ArrayList(u8).init(allocator);
 
+    if (!no_bits) try instruction_list.appendSlice("bits 16\n");
+
     var at: usize = 0;
-    while (at < data.len) {
+    while (true) {
         const inst = try nextInstruction(allocator, data, at);
+        defer inst.deinit(allocator);
         try instruction_list.appendSlice(inst.str);
-        std.debug.print("at: {d}, inst: {s}\n", .{at, inst.str});
+        if (debug) std.debug.print("at: {d}, len: {d}, inst: {s}\n", .{ at, inst.len, inst.str });
         at += inst.len;
+
+        if (at < data.len) {
+            try instruction_list.append('\n');
+        } else break;
     }
 
     return instruction_list.toOwnedSlice();
@@ -33,6 +37,10 @@ fn get_reg_name(val: u8, w: bool) []const u8 {
 pub const InstructionReturn = struct {
     len: usize,
     str: []u8,
+
+    pub fn deinit(self: *const InstructionReturn, allocator: std.mem.Allocator) void {
+        allocator.free(self.str);
+    }
 };
 
 fn get_value(data: []const u8, at: usize, w: bool) u16 {
@@ -76,7 +84,7 @@ fn mov_like(allocator: std.mem.Allocator, data: []const u8, at: usize, name: []c
             const s: bool = (b1 & 0b00000010) == 0b00000010;
             std.debug.assert(s);
             const value = get_value(data, at + 2, false);
-            return InstructionReturn{ .len = 2, .str = try std.fmt.allocPrint(allocator, "{s} {s}, {d}", .{ new_name, get_reg_name(rm, w), value }) };
+            return InstructionReturn{ .len = 3, .str = try std.fmt.allocPrint(allocator, "{s} {s}, {d}", .{ new_name, get_reg_name(rm, w), value }) };
         } else {
             std.debug.assert(first_type);
             return InstructionReturn{ .len = 2, .str = try std.fmt.allocPrint(allocator, "{s} {s}, {s}", .{ new_name, get_reg_name(rm, w), get_reg_name(reg, w) }) };
@@ -152,6 +160,7 @@ fn mov_like(allocator: std.mem.Allocator, data: []const u8, at: usize, name: []c
         if (rm == 0b11) {
             const b3: u16 = data[at + 2];
             value = b3;
+            len = 3;
         } else {
             const s_flag: bool = (b1 & 0b00000010) == 0b00000010;
             const wide = w and (!check_sign or !s_flag);
@@ -190,11 +199,12 @@ fn conditional_jump(allocator: std.mem.Allocator, data: []const u8, at: usize, n
 
 fn nextInstruction(allocator: std.mem.Allocator, data: []const u8, at: usize) !InstructionReturn {
     if (debug) {
-        for (data) |byte| {
+        const possible_slice = data[at..(if (data.len - at > 6) at + 6 else data.len)];
+        for (possible_slice) |byte| {
             std.debug.print("{b:->8} ", .{byte});
         }
         std.debug.print("\n", .{});
-        for (data) |byte| {
+        for (possible_slice) |byte| {
             std.debug.print("{d:->8} ", .{byte});
         }
         std.debug.print("\n", .{});
