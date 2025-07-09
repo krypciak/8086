@@ -1,13 +1,22 @@
 const std = @import("std");
 const stdout = std.io.getStdOut();
 
-pub const debug = false;
+pub const debug = true;
 
-pub fn disassemble(allocator: std.mem.Allocator, data: []const u8) !void {
-    try stdout.writeAll("bits 16\n");
-    const inst = try nextInstruction(allocator, data, 0);
-    defer inst.deinit(allocator);
-    try inst.print();
+pub fn disassemble(allocator: std.mem.Allocator, data: []const u8, no_bits: bool) ![]const u8 {
+    if (no_bits) try stdout.writeAll("bits 16\n");
+
+    var instruction_list = std.ArrayList(u8).init(allocator);
+
+    var at: usize = 0;
+    while (at < data.len) {
+        const inst = try nextInstruction(allocator, data, at);
+        try instruction_list.appendSlice(inst.str);
+        std.debug.print("at: {d}, inst: {s}\n", .{at, inst.str});
+        at += inst.len;
+    }
+
+    return instruction_list.toOwnedSlice();
 }
 
 fn get_reg_name(val: u8, w: bool) []const u8 {
@@ -24,15 +33,6 @@ fn get_reg_name(val: u8, w: bool) []const u8 {
 pub const InstructionReturn = struct {
     len: usize,
     str: []u8,
-
-    fn print(self: *const InstructionReturn) !void {
-        try stdout.writeAll(self.str);
-        try stdout.writeAll("\n");
-    }
-
-    pub fn deinit(self: *const InstructionReturn, allocator: std.mem.Allocator) void {
-        allocator.free(self.str);
-    }
 };
 
 fn get_value(data: []const u8, at: usize, w: bool) u16 {
@@ -188,7 +188,7 @@ fn conditional_jump(allocator: std.mem.Allocator, data: []const u8, at: usize, n
     return InstructionReturn{ .len = 2, .str = try std.fmt.allocPrint(allocator, "{s} {d}", .{ name, b2 }) };
 }
 
-pub fn nextInstruction(allocator: std.mem.Allocator, data: []const u8, at: usize) !InstructionReturn {
+fn nextInstruction(allocator: std.mem.Allocator, data: []const u8, at: usize) !InstructionReturn {
     if (debug) {
         for (data) |byte| {
             std.debug.print("{b:->8} ", .{byte});

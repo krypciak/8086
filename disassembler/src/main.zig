@@ -1,8 +1,12 @@
 const std = @import("std");
-const stdout = std.io.getStdOut();
-const allocator = std.heap.page_allocator;
 const disassembler = @import("disassembler");
+const testing = @import("test/test.zig");
 
 pub fn main() !void {
-    // try disassembler.disassemble("bits 16\nmov ax, bx");
+    const allocator = std.heap.page_allocator;
+
+    const str = try testing.assembleAndDisassemble(allocator, "mov ax, bx");
+    defer allocator.free(str);
+
+    std.debug.print("out:\n{s}\n", .{str});
 }

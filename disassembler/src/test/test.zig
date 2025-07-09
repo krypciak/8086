@@ -52,25 +52,24 @@ fn assemble(allocator: std.mem.Allocator, assembly: []const u8) ![]const u8 {
     return assembled;
 }
 
-fn assembleAndDisassemble(allocator: std.mem.Allocator, assembly: []const u8) !disassembler.InstructionReturn {
+pub fn assembleAndDisassemble(allocator: std.mem.Allocator, assembly: []const u8) ![]const u8 {
     if (disassembler.debug) std.debug.print("\n{s}\n", .{assembly});
     const assembled = try assemble(allocator, assembly);
     defer allocator.free(assembled);
 
-    const inst = try disassembler.nextInstruction(allocator, assembled, 0);
-    return inst;
+    return disassembler.disassemble(allocator, assembled, true);
 }
 
 pub fn assertInstructionDisassembly(assembly: []const u8) !void {
     const allocator = std.testing.allocator;
-    const inst = try assembleAndDisassemble(allocator, assembly);
-    defer inst.deinit(allocator);
-    try std.testing.expectEqualStrings(assembly, inst.str);
+    const disassembled = try assembleAndDisassemble(allocator, assembly);
+    defer allocator.free(disassembled);
+    try std.testing.expectEqualStrings(assembly, disassembled);
 }
 
 pub fn assertInstructionDisassemblyToEqual(assembly: []const u8, expected: []const u8) !void {
     const allocator = std.testing.allocator;
-    const inst = try assembleAndDisassemble(allocator, assembly);
-    defer inst.deinit(allocator);
-    try std.testing.expectEqualStrings(expected, inst.str);
+    const disassembled = try assembleAndDisassemble(allocator, assembly);
+    defer allocator.free(disassembled);
+    try std.testing.expectEqualStrings(expected, disassembled);
 }
