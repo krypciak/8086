@@ -61,14 +61,14 @@ pub fn assembleAndDisassemble(allocator: std.mem.Allocator, assembly: []const u8
     return disassembler.disassemble(allocator, assembled, true);
 }
 
-pub fn assertInstructionDisassembly(assembly: []const u8) !void {
+pub fn assertDisassembly(assembly: []const u8) !void {
     const allocator = std.testing.allocator;
     const disassembled = try assembleAndDisassemble(allocator, assembly);
     defer allocator.free(disassembled);
     try std.testing.expectEqualStrings(assembly, disassembled);
 }
 
-pub fn assertInstructionDisassemblyToEqual(assembly: []const u8, expected: []const u8) !void {
+pub fn assertDisassemblyToEqual(assembly: []const u8, expected: []const u8) !void {
     const allocator = std.testing.allocator;
     const disassembled = try assembleAndDisassemble(allocator, assembly);
     defer allocator.free(disassembled);
