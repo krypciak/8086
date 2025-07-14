@@ -1,13 +1,13 @@
 const std = @import("std");
 const expect = std.testing.expect;
 const process = std.process;
-const disassembler = @import("disassembler");
+const disassembler = @import("disassembler.zig");
 
 comptime {
-    _ = @import("mov.zig");
-    // _ = @import("add.zig");
-    // _ = @import("sub.zig");
-    // _ = @import("jumps.zig");
+    _ = @import("test_mov.zig");
+    _ = @import("test_add.zig");
+    _ = @import("test_sub.zig");
+    _ = @import("test_jumps.zig");
 }
 
 fn spawnShellProcess(allocator: std.mem.Allocator, command: []const []const u8) ![]const u8 {

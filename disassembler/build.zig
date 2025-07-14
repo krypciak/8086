@@ -5,7 +5,9 @@ pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
 
     const disassembler_mod = b.addModule("disassembler", .{
-        .root_source_file = b.path("src/disassembler/disassembler.zig"),
+        .root_source_file = b.path("src/disassembler.zig"),
+        .target = target,
+        .optimize = optimize,
     });
 
     const main_mod = b.createModule(.{
@@ -45,14 +47,8 @@ pub fn build(b: *std.Build) void {
     const run_step = b.step("run", "Run the app");
     run_step.dependOn(&run_cmd.step);
 
-    const test_mod = b.createModule(.{
-        .root_source_file = b.path("src/test/test.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-    test_mod.addImport("disassembler", disassembler_mod);
     const main_unit_tests = b.addTest(.{
-        .root_module = test_mod,
+        .root_module = disassembler_mod,
     });
     main_unit_tests.step.dependOn(clear_screen_step);
 

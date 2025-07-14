@@ -1,6 +1,12 @@
 const std = @import("std");
+const register_memory = @import("./register_memory.zig");
 
 pub const debug = false;
+
+comptime {
+    _ = @import("register_memory.zig");
+    _ = @import("test.zig");
+}
 
 pub fn disassemble(allocator: std.mem.Allocator, data: []const u8, no_bits: bool) ![]const u8 {
     var instruction_list = std.ArrayList(u8).init(allocator);
@@ -23,6 +29,15 @@ pub fn disassemble(allocator: std.mem.Allocator, data: []const u8, no_bits: bool
     return instruction_list.toOwnedSlice();
 }
 
+pub const InstructionReturn = struct {
+    len: usize,
+    str: []u8,
+
+    pub fn deinit(self: *const InstructionReturn, allocator: std.mem.Allocator) void {
+        allocator.free(self.str);
+    }
+};
+
 fn get_reg_name(val: u8, w: bool) []const u8 {
     const table_w0 = [8][]const u8{ "al", "cl", "dl", "bl", "ah", "ch", "dh", "bh" };
     const table_w1 = [8][]const u8{ "ax", "cx", "dx", "bx", "sp", "bp", "si", "di" };
@@ -33,15 +48,6 @@ fn get_reg_name(val: u8, w: bool) []const u8 {
         return table_w0[val];
     }
 }
-
-pub const InstructionReturn = struct {
-    len: usize,
-    str: []u8,
-
-    pub fn deinit(self: *const InstructionReturn, allocator: std.mem.Allocator) void {
-        allocator.free(self.str);
-    }
-};
 
 fn get_value(data: []const u8, at: usize, w: bool) u16 {
     const b1 = data[at];
