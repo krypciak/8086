@@ -1,6 +1,8 @@
 const std = @import("std");
-const disassembler = @import("disassembler");
-const testing = @import("test/test.zig");
+const disassembler = @import("disassembler.zig");
+const testing = @import("test.zig");
+
+pub const debug = false;
 
 pub fn main() !void {
     const allocator = std.heap.page_allocator;

@@ -6,8 +6,8 @@ const RegisterMemory = memory.RegisterMemory;
 const instruciton = @import("instruction.zig");
 const Instruction = instruciton.Instruction;
 
-const disassembler = @import("disassembler.zig");
-const get_value = disassembler.get_value;
+const instruction_parser = @import("instruction_parser.zig");
+const get_value = instruction_parser.get_value;
 
 pub const Value = struct {
     const ShowValueType = enum {

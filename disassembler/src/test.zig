@@ -3,6 +3,8 @@ const expect = std.testing.expect;
 const process = std.process;
 const disassembler = @import("disassembler.zig");
 
+pub const debug = false;
+
 comptime {
     _ = @import("memory.zig");
     _ = @import("mov.zig");
@@ -23,8 +25,6 @@ fn spawnShellProcess(allocator: std.mem.Allocator, command: []const []const u8) 
     const stdout_str = try child_stdout.toOwnedSlice(allocator);
     const stderr_str = try child_stderr.toOwnedSlice(allocator);
 
-    // std.debug.print("stdout: {s}\n", .{stdout_str});
-    // std.debug.print("stderr: {s}\n", .{stderr_str});
     std.debug.assert(stderr_str.len == 0);
     allocator.free(stderr_str);
 
@@ -37,7 +37,6 @@ fn assemble(allocator: std.mem.Allocator, assembly: []const u8) ![]const u8 {
     const tmp_file_path_raw = try spawnShellProcess(allocator, &[_][]const u8{ "mktemp", "--suffix", ".asm" });
     defer allocator.free(tmp_file_path_raw);
     const tmp_file_path = tmp_file_path_raw[0 .. tmp_file_path_raw.len - 1];
-    // std.debug.print("tmp: {s}\n", .{tmp_file_path});
 
     const tmp_file = try std.fs.cwd().openFile(tmp_file_path, .{ .mode = .write_only });
 
@@ -52,7 +51,7 @@ fn assemble(allocator: std.mem.Allocator, assembly: []const u8) ![]const u8 {
 }
 
 pub fn assembleAndDisassemble(allocator: std.mem.Allocator, assembly: []const u8) ![]const u8 {
-    if (disassembler.debug) std.debug.print("\n{s}\n", .{assembly});
+    if (debug) std.debug.print("\n{s}\n", .{assembly});
     const assembled = try assemble(allocator, assembly);
     defer allocator.free(assembled);
 
