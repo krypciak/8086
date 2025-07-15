@@ -4,10 +4,8 @@ const process = std.process;
 const disassembler = @import("disassembler.zig");
 
 comptime {
-    _ = @import("test_mov.zig");
-    _ = @import("test_add.zig");
-    _ = @import("test_sub.zig");
-    _ = @import("test_jumps.zig");
+    _ = @import("memory.zig");
+    _ = @import("mov.zig");
 }
 
 fn spawnShellProcess(allocator: std.mem.Allocator, command: []const []const u8) ![]const u8 {
