@@ -3,7 +3,6 @@ const std = @import("std");
 pub const RegisterMemory = struct {
     data: [16]u8 = [_]u8{0} ** 16,
 
-
     fn index_byte(register: u8) u8 {
         std.debug.assert(register < 8);
         if (register <= 3) return register * 2;
@@ -64,11 +63,8 @@ test "register memory" {
     try std.testing.expectEqual(2, mem.get_value_byte(1 + 4));
 }
 
-
-
 pub const RandomAccessMemory = struct {
-    data: [1024*1024]u8 = [_]u8{0} ** (1024*1024),
-
+    data: [1024 * 1024]u8 = [_]u8{0} ** (1024 * 1024),
 
     fn index_byte(address: u16) u16 {
         return address;
@@ -111,7 +107,6 @@ pub const RandomAccessMemory = struct {
     }
 };
 
-
 test "random access memory" {
     var mem = RandomAccessMemory{};
     try std.testing.expectEqual(0, mem.get_value_byte(0));
@@ -126,3 +121,17 @@ test "random access memory" {
     try std.testing.expectEqual(1, mem.get_value_byte(1));
     try std.testing.expectEqual(2, mem.get_value_byte(2));
 }
+
+pub const FlagsMemory = struct {
+    const Flags = enum {
+        Carry,
+        Parity,
+        Auxiliary,
+        Zero,
+        Sign,
+        Trap,
+        Interrupt,
+        Direction,
+        Overflow,
+    };
+};

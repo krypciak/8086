@@ -33,7 +33,7 @@ fn spawnShellProcess(allocator: std.mem.Allocator, command: []const []const u8) 
     return stdout_str;
 }
 
-fn assemble(allocator: std.mem.Allocator, assembly: []const u8) ![]const u8 {
+pub fn assemble(allocator: std.mem.Allocator, assembly: []const u8) ![]const u8 {
     const tmp_file_path_raw = try spawnShellProcess(allocator, &[_][]const u8{ "mktemp", "--suffix", ".asm" });
     defer allocator.free(tmp_file_path_raw);
     const tmp_file_path = tmp_file_path_raw[0 .. tmp_file_path_raw.len - 1];
@@ -48,26 +48,4 @@ fn assemble(allocator: std.mem.Allocator, assembly: []const u8) ![]const u8 {
     const assembled = try spawnShellProcess(allocator, &[_][]const u8{ "nasm", tmp_file_path, "-o", "/dev/stdout" });
 
     return assembled;
-}
-
-pub fn assembleAndDisassemble(allocator: std.mem.Allocator, assembly: []const u8) ![]const u8 {
-    if (debug) std.debug.print("\n{s}\n", .{assembly});
-    const assembled = try assemble(allocator, assembly);
-    defer allocator.free(assembled);
-
-    return disassembler.disassemble(allocator, assembled, true);
-}
-
-pub fn assertDisassembly(assembly: []const u8) !void {
-    const allocator = std.testing.allocator;
-    const disassembled = try assembleAndDisassemble(allocator, assembly);
-    defer allocator.free(disassembled);
-    try std.testing.expectEqualStrings(assembly, disassembled);
-}
-
-pub fn assertDisassemblyToEqual(assembly: []const u8, expected: []const u8) !void {
-    const allocator = std.testing.allocator;
-    const disassembled = try assembleAndDisassemble(allocator, assembly);
-    defer allocator.free(disassembled);
-    try std.testing.expectEqualStrings(expected, disassembled);
 }

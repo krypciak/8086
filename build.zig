@@ -4,18 +4,11 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    const disassembler_mod = b.addModule("disassembler", .{
-        .root_source_file = b.path("src/disassembler.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-
     const main_mod = b.createModule(.{
         .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
     });
-    main_mod.addImport("disassembler", disassembler_mod);
 
     const main_exe = b.addExecutable(.{
         .name = "disassembler",
@@ -48,7 +41,7 @@ pub fn build(b: *std.Build) void {
     run_step.dependOn(&run_cmd.step);
 
     const main_unit_tests = b.addTest(.{
-        .root_module = disassembler_mod,
+        .root_module = main_mod,
     });
     main_unit_tests.step.dependOn(clear_screen_step);
 

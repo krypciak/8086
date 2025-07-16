@@ -2,6 +2,10 @@ const std = @import("std");
 const disassembler = @import("disassembler.zig");
 const testing = @import("test.zig");
 
+comptime {
+    _ = @import("test.zig");
+}
+
 pub const debug = false;
 
 pub fn main() !void {

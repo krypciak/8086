@@ -71,27 +71,27 @@ pub fn conditional_jump(data: []const u8, at: usize, jumpType: Jump.Type) !Instr
     return Instruction{ .len = 2, .inst = .{ .Jump = .{ .type = jumpType, .offset = b2 } } };
 }
 
-const testing = @import("test.zig");
+const disassembler = @import("disassembler.zig");
 
 test "conditional jumps" {
-    try testing.assertDisassemblyToEqual("je label", "je -2");
-    try testing.assertDisassemblyToEqual("jl label", "jl -2");
-    try testing.assertDisassemblyToEqual("jle label", "jle -2");
-    try testing.assertDisassemblyToEqual("jb label", "jb -2");
-    try testing.assertDisassemblyToEqual("jbe label", "jbe -2");
-    try testing.assertDisassemblyToEqual("jp label", "jp -2");
-    try testing.assertDisassemblyToEqual("jo label", "jo -2");
-    try testing.assertDisassemblyToEqual("js label", "js -2");
-    try testing.assertDisassemblyToEqual("jne label", "jne -2");
-    try testing.assertDisassemblyToEqual("jnl label", "jnl -2");
-    try testing.assertDisassemblyToEqual("jnle label", "jnle -2");
-    try testing.assertDisassemblyToEqual("jnb label", "jnb -2");
-    try testing.assertDisassemblyToEqual("jnbe label", "jnbe -2");
-    try testing.assertDisassemblyToEqual("jnp label", "jnp -2");
-    try testing.assertDisassemblyToEqual("jno label", "jno -2");
-    try testing.assertDisassemblyToEqual("jns label", "jns -2");
-    try testing.assertDisassemblyToEqual("loop label", "loop -2");
-    try testing.assertDisassemblyToEqual("loopz label", "loopz -2");
-    try testing.assertDisassemblyToEqual("loopnz label", "loopnz -2");
-    try testing.assertDisassemblyToEqual("jcxz label", "jcxz -2");
+    try disassembler.assertDisassemblyToEqual("je label", "je -2");
+    try disassembler.assertDisassemblyToEqual("jl label", "jl -2");
+    try disassembler.assertDisassemblyToEqual("jle label", "jle -2");
+    try disassembler.assertDisassemblyToEqual("jb label", "jb -2");
+    try disassembler.assertDisassemblyToEqual("jbe label", "jbe -2");
+    try disassembler.assertDisassemblyToEqual("jp label", "jp -2");
+    try disassembler.assertDisassemblyToEqual("jo label", "jo -2");
+    try disassembler.assertDisassemblyToEqual("js label", "js -2");
+    try disassembler.assertDisassemblyToEqual("jne label", "jne -2");
+    try disassembler.assertDisassemblyToEqual("jnl label", "jnl -2");
+    try disassembler.assertDisassemblyToEqual("jnle label", "jnle -2");
+    try disassembler.assertDisassemblyToEqual("jnb label", "jnb -2");
+    try disassembler.assertDisassemblyToEqual("jnbe label", "jnbe -2");
+    try disassembler.assertDisassemblyToEqual("jnp label", "jnp -2");
+    try disassembler.assertDisassemblyToEqual("jno label", "jno -2");
+    try disassembler.assertDisassemblyToEqual("jns label", "jns -2");
+    try disassembler.assertDisassemblyToEqual("loop label", "loop -2");
+    try disassembler.assertDisassemblyToEqual("loopz label", "loopz -2");
+    try disassembler.assertDisassemblyToEqual("loopnz label", "loopnz -2");
+    try disassembler.assertDisassemblyToEqual("jcxz label", "jcxz -2");
 }

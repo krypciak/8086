@@ -301,81 +301,81 @@ pub fn mov_memory_to_accumulator(data: []const u8, at: usize) Instruction {
     return Instruction{ .len = 3, .inst = .{ .MovLike = .{ .type = .Mov, .to = to, .from = from } } };
 }
 
-const testing = @import("test.zig");
+const disassembler = @import("disassembler.zig");
 
 test "mov register-to-register" {
-    try testing.assertDisassembly("mov ax, bx");
-    try testing.assertDisassembly("mov si, bx");
-    try testing.assertDisassembly("mov dh, al");
+    try disassembler.assertDisassembly("mov ax, bx");
+    try disassembler.assertDisassembly("mov si, bx");
+    try disassembler.assertDisassembly("mov dh, al");
 }
 
 test "mov 8-bit immediate-to-register" {
-    try testing.assertDisassembly("mov cl, 12");
+    try disassembler.assertDisassembly("mov cl, 12");
 }
 
 test "mov 16-bit immediate-to-register" {
-    try testing.assertDisassembly("mov cx, 12");
-    try testing.assertDisassembly("mov dx, 3948");
+    try disassembler.assertDisassembly("mov cx, 12");
+    try disassembler.assertDisassembly("mov dx, 3948");
 }
 
 test "mov source address calculation" {
-    try testing.assertDisassembly("mov dx, [si]");
-    try testing.assertDisassembly("mov dx, [di]");
-    try testing.assertDisassembly("mov dx, [bp]");
-    try testing.assertDisassembly("mov dx, [bx]");
-    try testing.assertDisassembly("mov bx, [bp + di]");
-    try testing.assertDisassembly("mov al, [bx + si]");
+    try disassembler.assertDisassembly("mov dx, [si]");
+    try disassembler.assertDisassembly("mov dx, [di]");
+    try disassembler.assertDisassembly("mov dx, [bp]");
+    try disassembler.assertDisassembly("mov dx, [bx]");
+    try disassembler.assertDisassembly("mov bx, [bp + di]");
+    try disassembler.assertDisassembly("mov al, [bx + si]");
 }
 
 test "mov source address calculation plus 8-bit displacement" {
-    try testing.assertDisassembly("mov ah, [bx + si + 4]");
+    try disassembler.assertDisassembly("mov ah, [bx + si + 4]");
 }
 
 test "mov source address calculation plus 16-bit displacement" {
-    try testing.assertDisassembly("mov al, [bx + si + 4999]");
+    try disassembler.assertDisassembly("mov al, [bx + si + 4999]");
 }
 
 test "mov dest address calculation" {
-    try testing.assertDisassembly("mov [bx + di], cx");
-    try testing.assertDisassembly("mov [bp + si], cl");
-    try testing.assertDisassembly("mov [bp], ch");
-    try testing.assertDisassembly("mov [si + 1], cx");
+    try disassembler.assertDisassembly("mov [bx + di], cx");
+    try disassembler.assertDisassembly("mov [bp + si], cl");
+    try disassembler.assertDisassembly("mov [bp], ch");
+    try disassembler.assertDisassembly("mov [si + 1], cx");
 }
 
 test "mov signed displacements" {
-    try testing.assertDisassembly("mov ax, [bx + di - 37]");
-    try testing.assertDisassembly("mov [si - 300], cx");
-    try testing.assertDisassembly("mov dx, [bx - 32]");
+    try disassembler.assertDisassembly("mov ax, [bx + di - 37]");
+    try disassembler.assertDisassembly("mov [si - 300], cx");
+    try disassembler.assertDisassembly("mov dx, [bx - 32]");
 }
 
 test "mov explicit sizes" {
-    try testing.assertDisassembly("mov [bp + di], byte 7");
-    try testing.assertDisassembly("mov [di + 901], word 347");
-    try testing.assertDisassembly("mov [bx], byte 34");
-    try testing.assertDisassembly("mov [bp + si + 1000], word 29");
-    try testing.assertDisassembly("mov [4834], byte 29");
-    try testing.assertDisassembly("mov [4834], word 29");
+    try disassembler.assertDisassembly("mov [bp + di], byte 7");
+    try disassembler.assertDisassembly("mov [di + 901], word 347");
+    try disassembler.assertDisassembly("mov [bx], byte 34");
+    try disassembler.assertDisassembly("mov [bp + si + 1000], word 29");
+    try disassembler.assertDisassembly("mov [4834], byte 29");
+    try disassembler.assertDisassembly("mov [4834], word 29");
 }
 
 test "mov direct address" {
-    try testing.assertDisassembly("mov bp, [5]");
-    try testing.assertDisassembly("mov bx, [3458]");
+    try disassembler.assertDisassembly("mov bp, [5]");
+    try disassembler.assertDisassembly("mov bx, [3458]");
 }
 
 test "mov memory-to-accumulator test" {
-    try testing.assertDisassembly("mov ax, [2555]");
-    try testing.assertDisassembly("mov ax, [16]");
-    try testing.assertDisassembly("mov al, [16]");
+    try disassembler.assertDisassembly("mov ax, [2555]");
+    try disassembler.assertDisassembly("mov ax, [16]");
+    try disassembler.assertDisassembly("mov al, [16]");
 }
 
 test "mov accumulator-to-memory test" {
-    try testing.assertDisassembly("mov [2554], ax");
-    try testing.assertDisassembly("mov [15], ax");
-    try testing.assertDisassembly("mov [15], al");
+    try disassembler.assertDisassembly("mov [2554], ax");
+    try disassembler.assertDisassembly("mov [15], ax");
+    try disassembler.assertDisassembly("mov [15], al");
 }
 
 test "mov multi-line" {
-    try testing.assertDisassembly(
+    try disassembler.assertDisassembly(
         \\mov ax, bx
         \\mov si, bx
         \\mov dh, al
@@ -415,75 +415,75 @@ test "mov multi-line" {
 }
 
 test "add" {
-    try testing.assertDisassembly("add bx, [bx + si]");
-    try testing.assertDisassembly("add bx, [bp]");
-    try testing.assertDisassembly("add si, 2");
-    try testing.assertDisassembly("add bp, 2");
-    try testing.assertDisassembly("add cx, 8");
-    try testing.assertDisassembly("add bx, [bp]");
-    try testing.assertDisassembly("add cx, [bx + 2]");
-    try testing.assertDisassembly("add bh, [bp + si + 4]");
-    try testing.assertDisassembly("add di, [bp + di + 6]");
-    try testing.assertDisassembly("add [bx + si], bx");
-    try testing.assertDisassembly("add [bp], bx");
-    try testing.assertDisassembly("add [bx + 2], cx");
-    try testing.assertDisassembly("add [bp + si + 4], bh");
-    try testing.assertDisassembly("add [bp + di + 6], di");
-    try testing.assertDisassembly("add [bx], byte 34");
-    try testing.assertDisassembly("add [bp + si + 1000], word 29");
-    try testing.assertDisassembly("add ax, [bp]");
-    try testing.assertDisassembly("add al, [bx + si]");
-    try testing.assertDisassembly("add ax, bx");
-    try testing.assertDisassembly("add al, ah");
-    try testing.assertDisassembly("add ax, 1000");
-    try testing.assertDisassembly("add al, 9");
+    try disassembler.assertDisassembly("add bx, [bx + si]");
+    try disassembler.assertDisassembly("add bx, [bp]");
+    try disassembler.assertDisassembly("add si, 2");
+    try disassembler.assertDisassembly("add bp, 2");
+    try disassembler.assertDisassembly("add cx, 8");
+    try disassembler.assertDisassembly("add bx, [bp]");
+    try disassembler.assertDisassembly("add cx, [bx + 2]");
+    try disassembler.assertDisassembly("add bh, [bp + si + 4]");
+    try disassembler.assertDisassembly("add di, [bp + di + 6]");
+    try disassembler.assertDisassembly("add [bx + si], bx");
+    try disassembler.assertDisassembly("add [bp], bx");
+    try disassembler.assertDisassembly("add [bx + 2], cx");
+    try disassembler.assertDisassembly("add [bp + si + 4], bh");
+    try disassembler.assertDisassembly("add [bp + di + 6], di");
+    try disassembler.assertDisassembly("add [bx], byte 34");
+    try disassembler.assertDisassembly("add [bp + si + 1000], word 29");
+    try disassembler.assertDisassembly("add ax, [bp]");
+    try disassembler.assertDisassembly("add al, [bx + si]");
+    try disassembler.assertDisassembly("add ax, bx");
+    try disassembler.assertDisassembly("add al, ah");
+    try disassembler.assertDisassembly("add ax, 1000");
+    try disassembler.assertDisassembly("add al, 9");
 }
 
 test "sub" {
-    try testing.assertDisassembly("sub bx, [bx + si]");
-    try testing.assertDisassembly("sub bx, [bp]");
-    try testing.assertDisassembly("sub si, 2");
-    try testing.assertDisassembly("sub bp, 2");
-    try testing.assertDisassembly("sub cx, 8");
-    try testing.assertDisassembly("sub cx, [bx + 2]");
-    try testing.assertDisassembly("sub bh, [bp + si + 4]");
-    try testing.assertDisassembly("sub di, [bp + di + 6]");
-    try testing.assertDisassembly("sub [bx + si], bx");
-    try testing.assertDisassembly("sub [bp], bx");
-    try testing.assertDisassembly("sub [bx + 2], cx");
-    try testing.assertDisassembly("sub [bp + si + 4], bh");
-    try testing.assertDisassembly("sub [bp + di + 6], di");
-    try testing.assertDisassembly("sub [bx], byte 34");
-    try testing.assertDisassembly("sub [bx + di], word 29");
-    try testing.assertDisassembly("sub ax, [bp]");
-    try testing.assertDisassembly("sub al, [bx + si]");
-    try testing.assertDisassembly("sub ax, bx");
-    try testing.assertDisassembly("sub al, ah");
-    try testing.assertDisassembly("sub ax, 1000");
-    try testing.assertDisassembly("sub al, 9");
+    try disassembler.assertDisassembly("sub bx, [bx + si]");
+    try disassembler.assertDisassembly("sub bx, [bp]");
+    try disassembler.assertDisassembly("sub si, 2");
+    try disassembler.assertDisassembly("sub bp, 2");
+    try disassembler.assertDisassembly("sub cx, 8");
+    try disassembler.assertDisassembly("sub cx, [bx + 2]");
+    try disassembler.assertDisassembly("sub bh, [bp + si + 4]");
+    try disassembler.assertDisassembly("sub di, [bp + di + 6]");
+    try disassembler.assertDisassembly("sub [bx + si], bx");
+    try disassembler.assertDisassembly("sub [bp], bx");
+    try disassembler.assertDisassembly("sub [bx + 2], cx");
+    try disassembler.assertDisassembly("sub [bp + si + 4], bh");
+    try disassembler.assertDisassembly("sub [bp + di + 6], di");
+    try disassembler.assertDisassembly("sub [bx], byte 34");
+    try disassembler.assertDisassembly("sub [bx + di], word 29");
+    try disassembler.assertDisassembly("sub ax, [bp]");
+    try disassembler.assertDisassembly("sub al, [bx + si]");
+    try disassembler.assertDisassembly("sub ax, bx");
+    try disassembler.assertDisassembly("sub al, ah");
+    try disassembler.assertDisassembly("sub ax, 1000");
+    try disassembler.assertDisassembly("sub al, 9");
 }
 
 test "cmp" {
-    try testing.assertDisassembly("cmp bx, [bx + si]");
-    try testing.assertDisassembly("cmp bx, [bp]");
-    try testing.assertDisassembly("cmp si, 2");
-    try testing.assertDisassembly("cmp bp, 2");
-    try testing.assertDisassembly("cmp cx, 8");
-    try testing.assertDisassembly("cmp bx, [bp]");
-    try testing.assertDisassembly("cmp cx, [bx + 2]");
-    try testing.assertDisassembly("cmp bh, [bp + si + 4]");
-    try testing.assertDisassembly("cmp di, [bp + di + 6]");
-    try testing.assertDisassembly("cmp [bx + si], bx");
-    try testing.assertDisassembly("cmp [bp], bx");
-    try testing.assertDisassembly("cmp [bx + 2], cx");
-    try testing.assertDisassembly("cmp [bp + si + 4], bh");
-    try testing.assertDisassembly("cmp [bp + di + 6], di");
-    try testing.assertDisassembly("cmp [bx], byte 34");
-    try testing.assertDisassembly("cmp [4834], word 29");
-    try testing.assertDisassembly("cmp ax, [bp]");
-    try testing.assertDisassembly("cmp al, [bx + si]");
-    try testing.assertDisassembly("cmp ax, bx");
-    try testing.assertDisassembly("cmp al, ah");
-    try testing.assertDisassembly("cmp ax, 1000");
-    try testing.assertDisassembly("cmp al, 9");
+    try disassembler.assertDisassembly("cmp bx, [bx + si]");
+    try disassembler.assertDisassembly("cmp bx, [bp]");
+    try disassembler.assertDisassembly("cmp si, 2");
+    try disassembler.assertDisassembly("cmp bp, 2");
+    try disassembler.assertDisassembly("cmp cx, 8");
+    try disassembler.assertDisassembly("cmp bx, [bp]");
+    try disassembler.assertDisassembly("cmp cx, [bx + 2]");
+    try disassembler.assertDisassembly("cmp bh, [bp + si + 4]");
+    try disassembler.assertDisassembly("cmp di, [bp + di + 6]");
+    try disassembler.assertDisassembly("cmp [bx + si], bx");
+    try disassembler.assertDisassembly("cmp [bp], bx");
+    try disassembler.assertDisassembly("cmp [bx + 2], cx");
+    try disassembler.assertDisassembly("cmp [bp + si + 4], bh");
+    try disassembler.assertDisassembly("cmp [bp + di + 6], di");
+    try disassembler.assertDisassembly("cmp [bx], byte 34");
+    try disassembler.assertDisassembly("cmp [4834], word 29");
+    try disassembler.assertDisassembly("cmp ax, [bp]");
+    try disassembler.assertDisassembly("cmp al, [bx + si]");
+    try disassembler.assertDisassembly("cmp ax, bx");
+    try disassembler.assertDisassembly("cmp al, ah");
+    try disassembler.assertDisassembly("cmp ax, 1000");
+    try disassembler.assertDisassembly("cmp al, 9");
 }
