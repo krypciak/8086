@@ -26,7 +26,7 @@ pub const Jump = struct {
         loopnz,
         jcxz,
 
-        pub fn to_string(self: *const Type) []const u8 {
+        pub fn toString(self: *const Type) []const u8 {
             return switch (self.*) {
                 .je => "je",
                 .jl => "jl",
@@ -55,8 +55,8 @@ pub const Jump = struct {
     type: Type,
     offset: i8,
 
-    pub fn to_string(self: *const Jump, allocator: std.mem.Allocator) ![]const u8 {
-        const p1 = self.type.to_string();
+    pub fn toString(self: *const Jump, allocator: std.mem.Allocator) ![]const u8 {
+        const p1 = self.type.toString();
 
         return std.fmt.allocPrint(allocator, "{s} {d}", .{p1, self.offset});
     }
@@ -66,7 +66,7 @@ pub const Jump = struct {
     }
 };
 
-pub fn conditional_jump(data: []const u8, at: usize, jumpType: Jump.Type) !Instruction {
+pub fn conditionalJump(data: []const u8, at: usize, jumpType: Jump.Type) !Instruction {
     const b2: i8 = @bitCast(data[at + 1]);
     return Instruction{ .len = 2, .inst = .{ .Jump = .{ .type = jumpType, .offset = b2 } } };
 }

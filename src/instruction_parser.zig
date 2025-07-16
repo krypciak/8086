@@ -11,7 +11,7 @@ const Instruction = instruciton.Instruction;
 
 const debug = @import("main.zig").debug;
 
-pub fn get_value(data: []const u8, at: usize, w: bool) u16 {
+pub fn getValue(data: []const u8, at: usize, w: bool) u16 {
     const b1 = data[at];
     var value: u16 = b1;
     if (w) {
@@ -37,67 +37,67 @@ fn nextInstruction(data: []const u8, at: usize) !Instruction {
     const b1 = data[at];
 
     if (b1 & 0b11111100 == 0b10001000) {
-        return mov.mov_like(data, at, .Mov, true, false);
+        return mov.movLike(data, at, .Mov, true, false);
     } else if (b1 & 0b11111110 == 0b11000110) {
-        return mov.mov_like(data, at, .Mov, false, false);
+        return mov.movLike(data, at, .Mov, false, false);
     } else if (b1 & 0b11110000 == 0b10110000) {
-        return mov.mov_immediate_to_register(data, at);
+        return mov.movImmediateToRegister(data, at);
     } else if (b1 & 0b11111110 == 0b10100000 or b1 & 0b11111110 == 0b10100010) {
-        return mov.mov_memory_to_accumulator(data,at);
+        return mov.movMemoryToAccumulator(data,at);
     } else if (b1 & 0b11111100 == 0b00000000) {
-        return mov.mov_like(data, at, .Add, true, false);
+        return mov.movLike(data, at, .Add, true, false);
     } else if (b1 & 0b11111100 == 0b10000000) {
-        return mov.mov_like(data, at, .Add, false, true);
+        return mov.movLike(data, at, .Add, false, true);
     } else if (b1 & 0b11111110 == 0b00000100) {
-        return mov.arithmetic_immediate_from_accumulator(data, at, .Add);
+        return mov.arithmeticImmediateFromAccumulator(data, at, .Add);
     } else if (b1 & 0b11111100 == 0b00101000) {
-        return mov.mov_like(data, at, .Sub, true, false);
+        return mov.movLike(data, at, .Sub, true, false);
     } else if (b1 & 0b11111110 == 0b00101100) {
-        return mov.arithmetic_immediate_from_accumulator(data, at, .Sub);
+        return mov.arithmeticImmediateFromAccumulator(data, at, .Sub);
     } else if (b1 & 0b11111100 == 0b00111000) {
-        return mov.mov_like(data, at, .Cmp, true, false);
+        return mov.movLike(data, at, .Cmp, true, false);
     } else if (b1 & 0b11111110 == 0b00111100) {
-        return mov.arithmetic_immediate_from_accumulator(data, at, .Cmp);
+        return mov.arithmeticImmediateFromAccumulator(data, at, .Cmp);
     } else if (b1 == 0b01110100) {
-        return jump.conditional_jump(data, at, .je);
+        return jump.conditionalJump(data, at, .je);
     } else if (b1 == 0b01111100) {
-        return jump.conditional_jump(data, at, .jl);
+        return jump.conditionalJump(data, at, .jl);
     } else if (b1 == 0b01111110) {
-        return jump.conditional_jump(data, at, .jle);
+        return jump.conditionalJump(data, at, .jle);
     } else if (b1 == 0b01110010) {
-        return jump.conditional_jump(data, at, .jb);
+        return jump.conditionalJump(data, at, .jb);
     } else if (b1 == 0b01110110) {
-        return jump.conditional_jump(data, at, .jbe);
+        return jump.conditionalJump(data, at, .jbe);
     } else if (b1 == 0b01111010) {
-        return jump.conditional_jump(data, at, .jp);
+        return jump.conditionalJump(data, at, .jp);
     } else if (b1 == 0b01110000) {
-        return jump.conditional_jump(data, at, .jo);
+        return jump.conditionalJump(data, at, .jo);
     } else if (b1 == 0b01111000) {
-        return jump.conditional_jump(data, at, .js);
+        return jump.conditionalJump(data, at, .js);
     } else if (b1 == 0b01110101) {
-        return jump.conditional_jump(data, at, .jne);
+        return jump.conditionalJump(data, at, .jne);
     } else if (b1 == 0b01111101) {
-        return jump.conditional_jump(data, at, .jnl);
+        return jump.conditionalJump(data, at, .jnl);
     } else if (b1 == 0b01111111) {
-        return jump.conditional_jump(data, at, .jnle);
+        return jump.conditionalJump(data, at, .jnle);
     } else if (b1 == 0b01110011) {
-        return jump.conditional_jump(data, at, .jnb);
+        return jump.conditionalJump(data, at, .jnb);
     } else if (b1 == 0b01110111) {
-        return jump.conditional_jump(data, at, .jnbe);
+        return jump.conditionalJump(data, at, .jnbe);
     } else if (b1 == 0b01111011) {
-        return jump.conditional_jump(data, at, .jnp);
+        return jump.conditionalJump(data, at, .jnp);
     } else if (b1 == 0b01110001) {
-        return jump.conditional_jump(data, at, .jno);
+        return jump.conditionalJump(data, at, .jno);
     } else if (b1 == 0b01111001) {
-        return jump.conditional_jump(data, at, .jns);
+        return jump.conditionalJump(data, at, .jns);
     } else if (b1 == 0b11100010) {
-        return jump.conditional_jump(data, at, .loop);
+        return jump.conditionalJump(data, at, .loop);
     } else if (b1 == 0b11100001) {
-        return jump.conditional_jump(data, at, .loopz);
+        return jump.conditionalJump(data, at, .loopz);
     } else if (b1 == 0b011100000) {
-        return jump.conditional_jump(data, at, .loopnz);
+        return jump.conditionalJump(data, at, .loopnz);
     } else if (b1 == 0b11100011) {
-        return jump.conditional_jump(data, at, .jcxz);
+        return jump.conditionalJump(data, at, .jcxz);
     } else unreachable;
 }
 

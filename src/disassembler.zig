@@ -17,7 +17,7 @@ pub fn disassemble(allocator: std.mem.Allocator, data: []const u8, no_bits: bool
             try str_list.append('\n');
         }
 
-        const str = try inst.inst.to_string(allocator);
+        const str = try inst.inst.toString(allocator);
         defer allocator.free(str);
         try str_list.appendSlice(str);
     }

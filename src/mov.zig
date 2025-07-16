@@ -7,7 +7,7 @@ const instruciton = @import("instruction.zig");
 const Instruction = instruciton.Instruction;
 
 const instruction_parser = @import("instruction_parser.zig");
-const get_value = instruction_parser.get_value;
+const getValue = instruction_parser.getValue;
 
 pub const Value = struct {
     const ShowValueType = enum {
@@ -18,7 +18,7 @@ pub const Value = struct {
 
     value: u16,
 
-    pub fn to_string(self: *const Value, allocator: std.mem.Allocator, show_value_type: ShowValueType) ![]const u8 {
+    pub fn toString(self: *const Value, allocator: std.mem.Allocator, show_value_type: ShowValueType) ![]const u8 {
         if (show_value_type == .No) {
             return std.fmt.allocPrint(allocator, "{d}", .{self.value});
         } else {
@@ -31,8 +31,8 @@ pub const RegisterAddress = struct {
     register: u8,
     wide: bool,
 
-    pub fn to_string(self: *const RegisterAddress, allocator: std.mem.Allocator) ![]const u8 {
-        return std.fmt.allocPrint(allocator, "{s}", .{get_reg_name(self.register, self.wide)});
+    pub fn toString(self: *const RegisterAddress, allocator: std.mem.Allocator) ![]const u8 {
+        return std.fmt.allocPrint(allocator, "{s}", .{getRegName(self.register, self.wide)});
     }
 };
 
@@ -42,13 +42,13 @@ pub const MemoryAddress = struct {
     reg2: ?u8 = null,
     wide: bool,
 
-    pub fn to_string(self: *const MemoryAddress, allocator: std.mem.Allocator) ![]const u8 {
+    pub fn toString(self: *const MemoryAddress, allocator: std.mem.Allocator) ![]const u8 {
         if (self.reg1) |reg1| {
             const sign: u8 = if (self.displacement >= 0) '+' else '-';
 
-            const r1 = get_reg_name(reg1, true);
+            const r1 = getRegName(reg1, true);
             if (self.reg2) |reg2| {
-                const r2 = get_reg_name(reg2, true);
+                const r2 = getRegName(reg2, true);
                 if (self.displacement == 0) {
                     return try std.fmt.allocPrint(allocator, "[{s} + {s}]", .{ r1, r2 });
                 } else {
@@ -78,16 +78,16 @@ pub const AddressOrValue = union(AddressOrValue.Types) {
     RegisterAddress: RegisterAddress,
     MemoryAddress: MemoryAddress,
 
-    pub fn to_string(self: *const AddressOrValue, allocator: std.mem.Allocator, show_value_type: Value.ShowValueType) ![]const u8 {
+    pub fn toString(self: *const AddressOrValue, allocator: std.mem.Allocator, show_value_type: Value.ShowValueType) ![]const u8 {
         return switch (self.*) {
-            .Value => |*byte| byte.to_string(allocator, show_value_type),
-            .RegisterAddress => |*reg| reg.to_string(allocator),
-            .MemoryAddress => |*mem| mem.to_string(allocator),
+            .Value => |*byte| byte.toString(allocator, show_value_type),
+            .RegisterAddress => |*reg| reg.toString(allocator),
+            .MemoryAddress => |*mem| mem.toString(allocator),
         };
     }
 };
 
-fn get_reg_name(val: u8, w: bool) []const u8 {
+fn getRegName(val: u8, w: bool) []const u8 {
     const table_w0 = [8][]const u8{ "al", "cl", "dl", "bl", "ah", "ch", "dh", "bh" };
     const table_w1 = [8][]const u8{ "ax", "cx", "dx", "bx", "sp", "bp", "si", "di" };
 
@@ -105,7 +105,7 @@ pub const MovLike = struct {
         Sub,
         Cmp,
 
-        pub fn to_string(self: *const Type) []const u8 {
+        pub fn toString(self: *const Type) []const u8 {
             return switch (self.*) {
                 .Mov => "mov",
                 .Add => "add",
@@ -119,16 +119,16 @@ pub const MovLike = struct {
     to: AddressOrValue,
     from: AddressOrValue,
 
-    pub fn to_string(self: *const MovLike, allocator: std.mem.Allocator) ![]const u8 {
-        const p1 = self.type.to_string();
+    pub fn toString(self: *const MovLike, allocator: std.mem.Allocator) ![]const u8 {
+        const p1 = self.type.toString();
 
         const show_value_type: Value.ShowValueType = switch (self.to) {
             .MemoryAddress => |*mem| if (mem.wide) .Word else .Byte,
             else => .No,
         };
 
-        const p2 = try self.to.to_string(allocator, .No);
-        const p3 = try self.from.to_string(allocator, show_value_type);
+        const p2 = try self.to.toString(allocator, .No);
+        const p3 = try self.from.toString(allocator, show_value_type);
         defer allocator.free(p2);
         defer allocator.free(p3);
 
@@ -141,7 +141,7 @@ pub const MovLike = struct {
     }
 };
 
-pub fn mov_like(data: []const u8, at: usize, mov_type: MovLike.Type, first_type: bool, check_sign: bool) !Instruction {
+pub fn movLike(data: []const u8, at: usize, mov_type: MovLike.Type, first_type: bool, check_sign: bool) !Instruction {
     const b1 = data[at];
     const b2 = data[at + 1];
 
@@ -169,7 +169,7 @@ pub fn mov_like(data: []const u8, at: usize, mov_type: MovLike.Type, first_type:
         if (check_sign) {
             const s: bool = (b1 & 0b00000010) == 0b00000010;
             std.debug.assert(s);
-            const value = get_value(data, at + 2, false);
+            const value = getValue(data, at + 2, false);
 
             return Instruction{ .len = 3, .inst = .{ .MovLike = .{ .type = new_mov_type, .to = .{ .RegisterAddress = .{ .register = rm, .wide = w } }, .from = .{ .Value = .{ .value = @truncate(value) } } } } };
         } else {
@@ -202,7 +202,7 @@ pub fn mov_like(data: []const u8, at: usize, mov_type: MovLike.Type, first_type:
     if (mod == 0b00) {
         if (rm == 0b110) {
             len = 4;
-            const value: u16 = get_value(data, at + 2, true);
+            const value: u16 = getValue(data, at + 2, true);
             from = .{ .MemoryAddress = .{ .displacement = @bitCast(value), .wide = w } };
         } else {
             len = 2;
@@ -248,10 +248,10 @@ pub fn mov_like(data: []const u8, at: usize, mov_type: MovLike.Type, first_type:
             const wide = w and (!check_sign or !s_flag);
 
             if (mod == 0b00 and rm != 0b110) {
-                value = get_value(data, at + 2, wide);
+                value = getValue(data, at + 2, wide);
                 len = @max(len, 3 + @as(usize, @intFromBool(wide)));
             } else {
-                value = get_value(data, at + 4, wide);
+                value = getValue(data, at + 4, wide);
                 len = @max(len, 5 + @as(usize, @intFromBool(wide)));
             }
         }
@@ -265,29 +265,29 @@ pub fn mov_like(data: []const u8, at: usize, mov_type: MovLike.Type, first_type:
     return Instruction{ .len = len, .inst = .{ .MovLike = .{ .type = new_mov_type, .from = from, .to = to } } };
 }
 
-pub fn arithmetic_immediate_from_accumulator(data: []const u8, at: usize, movType: MovLike.Type) Instruction {
+pub fn arithmeticImmediateFromAccumulator(data: []const u8, at: usize, movType: MovLike.Type) Instruction {
     const b1 = data[at];
     const w: bool = (b1 & 0b00000001) == 1;
-    const value = get_value(data, at + 1, w);
+    const value = getValue(data, at + 1, w);
     return Instruction{ .len = if (w) 3 else 2, .inst = .{ .MovLike = .{ .type = movType, .to = .{ .RegisterAddress = .{ .register = 0, .wide = w } }, .from = .{ .Value = .{ .value = value } } } } };
 }
 
-pub fn mov_immediate_to_register(data: []const u8, at: usize) Instruction {
+pub fn movImmediateToRegister(data: []const u8, at: usize) Instruction {
     const b1 = data[at];
 
     const w: bool = (b1 & 0b00001000) == 0b00001000;
     const reg = b1 & 0b00000111;
 
-    const value: u16 = get_value(data, at + 1, w);
+    const value: u16 = getValue(data, at + 1, w);
     return Instruction{ .len = if (w) 3 else 2, .inst = .{ .MovLike = .{ .type = .Mov, .to = .{ .RegisterAddress = .{ .register = reg, .wide = w } }, .from = .{ .Value = .{ .value = value } } } } };
 }
 
-pub fn mov_memory_to_accumulator(data: []const u8, at: usize) Instruction {
+pub fn movMemoryToAccumulator(data: []const u8, at: usize) Instruction {
     const b1 = data[at];
 
     const w: bool = (b1 & 0b00000001) == 1;
 
-    const value: u16 = get_value(data, at + 1, w);
+    const value: u16 = getValue(data, at + 1, w);
 
     var to: AddressOrValue = .{ .RegisterAddress = .{ .register = 0, .wide = w } };
     var from: AddressOrValue = .{ .MemoryAddress = .{ .displacement = @intCast(value), .wide = w } };

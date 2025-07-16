@@ -3,123 +3,123 @@ const std = @import("std");
 pub const RegisterMemory = struct {
     data: [16]u8 = [_]u8{0} ** 16,
 
-    fn index_byte(register: u8) u8 {
+    fn indexByte(register: u8) u8 {
         std.debug.assert(register < 8);
         if (register <= 3) return register * 2;
         return (register - 4) * 2 + 1;
     }
 
-    fn index_word(register: u8) u8 {
+    fn indexWord(register: u8) u8 {
         std.debug.assert(register < 8);
         return register * 2;
     }
 
-    fn get_value_byte(self: *const RegisterMemory, register: u8) u16 {
+    fn getValueByte(self: *const RegisterMemory, register: u8) u16 {
         std.debug.assert(register < 8);
-        return self.data[index_byte(register)];
+        return self.data[indexByte(register)];
     }
 
-    fn get_value_word(self: *const RegisterMemory, register: u8) u16 {
-        const index = index_word(register);
+    fn getValueWord(self: *const RegisterMemory, register: u8) u16 {
+        const index = indexWord(register);
         return self.data[index] + (@as(u16, self.data[index + 1]) << 8);
     }
 
-    pub fn get_value(register: u8, wide: bool) u16 {
-        if (wide) return get_value_word(register);
-        return get_value_byte(register);
+    pub fn getValue(register: u8, wide: bool) u16 {
+        if (wide) return getValueWord(register);
+        return getValueByte(register);
     }
 
-    fn set_value_byte(self: *RegisterMemory, register: u8, value: u8) void {
-        self.data[index_byte(register)] = value;
+    fn setValueByte(self: *RegisterMemory, register: u8, value: u8) void {
+        self.data[indexByte(register)] = value;
     }
 
-    fn set_value_word(self: *RegisterMemory, register: u8, value: u16) void {
-        const index = index_word(register);
+    fn setValue_word(self: *RegisterMemory, register: u8, value: u16) void {
+        const index = indexWord(register);
         self.data[index] = @as(u8, @truncate(value));
         self.data[index + 1] = @as(u8, @truncate(value >> 8));
     }
 
-    pub fn set_value(register: u8, value: u16, wide: bool) void {
+    pub fn setValue(register: u8, value: u16, wide: bool) void {
         if (wide) {
-            set_value_word(register, value);
+            setValue_word(register, value);
         } else {
-            set_value_byte(register, value);
+            setValueByte(register, value);
         }
     }
 };
 
 test "register memory" {
     var mem = RegisterMemory{};
-    try std.testing.expectEqual(0, mem.get_value_byte(0));
-    try std.testing.expectEqual(0, mem.get_value_word(0));
+    try std.testing.expectEqual(0, mem.getValueByte(0));
+    try std.testing.expectEqual(0, mem.getValueWord(0));
 
-    mem.set_value_byte(3, 26);
-    try std.testing.expectEqual(26, mem.get_value_byte(3));
-    try std.testing.expectEqual(26, mem.get_value_word(3));
+    mem.setValueByte(3, 26);
+    try std.testing.expectEqual(26, mem.getValueByte(3));
+    try std.testing.expectEqual(26, mem.getValueWord(3));
 
-    mem.set_value_word(1, 513);
-    try std.testing.expectEqual(513, mem.get_value_word(1));
-    try std.testing.expectEqual(1, mem.get_value_byte(1));
-    try std.testing.expectEqual(2, mem.get_value_byte(1 + 4));
+    mem.setValue_word(1, 513);
+    try std.testing.expectEqual(513, mem.getValueWord(1));
+    try std.testing.expectEqual(1, mem.getValueByte(1));
+    try std.testing.expectEqual(2, mem.getValueByte(1 + 4));
 }
 
 pub const RandomAccessMemory = struct {
     data: [1024 * 1024]u8 = [_]u8{0} ** (1024 * 1024),
 
-    fn index_byte(address: u16) u16 {
+    fn indexByte(address: u16) u16 {
         return address;
     }
 
-    fn index_word(address: u16) u16 {
+    fn indexWord(address: u16) u16 {
         return address;
     }
 
-    fn get_value_byte(self: *const RandomAccessMemory, address: u16) u16 {
-        return self.data[index_byte(address)];
+    fn getValueByte(self: *const RandomAccessMemory, address: u16) u16 {
+        return self.data[indexByte(address)];
     }
 
-    fn get_value_word(self: *const RandomAccessMemory, address: u16) u16 {
-        const index = index_word(address);
+    fn getValueWord(self: *const RandomAccessMemory, address: u16) u16 {
+        const index = indexWord(address);
         return self.data[index] + (@as(u16, self.data[index + 1]) << 8);
     }
 
-    pub fn get_value(address: u16, wide: bool) u16 {
-        if (wide) return get_value_word(address);
-        return get_value_byte(address);
+    pub fn getValue(address: u16, wide: bool) u16 {
+        if (wide) return getValueWord(address);
+        return getValueByte(address);
     }
 
-    fn set_value_byte(self: *RandomAccessMemory, address: u16, value: u8) void {
-        self.data[index_byte(address)] = value;
+    fn setValueByte(self: *RandomAccessMemory, address: u16, value: u8) void {
+        self.data[indexByte(address)] = value;
     }
 
-    fn set_value_word(self: *RandomAccessMemory, address: u8, value: u16) void {
-        const index = index_word(address);
+    fn setValue_word(self: *RandomAccessMemory, address: u8, value: u16) void {
+        const index = indexWord(address);
         self.data[index] = @as(u8, @truncate(value));
         self.data[index + 1] = @as(u8, @truncate(value >> 8));
     }
 
-    pub fn set_value(address: u16, value: u16, wide: bool) void {
+    pub fn setValue(address: u16, value: u16, wide: bool) void {
         if (wide) {
-            set_value_word(address, value);
+            setValue_word(address, value);
         } else {
-            set_value_byte(address, value);
+            setValueByte(address, value);
         }
     }
 };
 
 test "random access memory" {
     var mem = RandomAccessMemory{};
-    try std.testing.expectEqual(0, mem.get_value_byte(0));
-    try std.testing.expectEqual(0, mem.get_value_word(0));
+    try std.testing.expectEqual(0, mem.getValueByte(0));
+    try std.testing.expectEqual(0, mem.getValueWord(0));
 
-    mem.set_value_byte(3, 26);
-    try std.testing.expectEqual(26, mem.get_value_byte(3));
-    try std.testing.expectEqual(26, mem.get_value_word(3));
+    mem.setValueByte(3, 26);
+    try std.testing.expectEqual(26, mem.getValueByte(3));
+    try std.testing.expectEqual(26, mem.getValueWord(3));
 
-    mem.set_value_word(1, 513);
-    try std.testing.expectEqual(513, mem.get_value_word(1));
-    try std.testing.expectEqual(1, mem.get_value_byte(1));
-    try std.testing.expectEqual(2, mem.get_value_byte(2));
+    mem.setValue_word(1, 513);
+    try std.testing.expectEqual(513, mem.getValueWord(1));
+    try std.testing.expectEqual(1, mem.getValueByte(1));
+    try std.testing.expectEqual(2, mem.getValueByte(2));
 }
 
 pub const FlagsMemory = struct {

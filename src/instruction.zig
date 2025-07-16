@@ -6,10 +6,10 @@ pub const InstructionUnion = union(Instruction.Type) {
     MovLike: mov.MovLike,
     Jump: jump.Jump,
 
-    pub fn to_string(self: *const InstructionUnion, allocator: std.mem.Allocator) ![]const u8 {
+    pub fn toString(self: *const InstructionUnion, allocator: std.mem.Allocator) ![]const u8 {
         return switch (self.*) {
-            .MovLike => |*inst| inst.to_string(allocator),
-            .Jump => |*inst| inst.to_string(allocator),
+            .MovLike => |*inst| inst.toString(allocator),
+            .Jump => |*inst| inst.toString(allocator),
         };
     }
 };
