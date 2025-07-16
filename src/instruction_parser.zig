@@ -37,25 +37,29 @@ fn nextInstruction(data: []const u8, at: usize) !Instruction {
     const b1 = data[at];
 
     if (b1 & 0b11111100 == 0b10001000) {
-        return mov.movLike(data, at, .Mov, true, false);
+        return mov.movLike(data, at, .Mov, true, false, .No);
     } else if (b1 & 0b11111110 == 0b11000110) {
-        return mov.movLike(data, at, .Mov, false, false);
+        return mov.movLike(data, at, .Mov, false, false, .No);
     } else if (b1 & 0b11110000 == 0b10110000) {
         return mov.movImmediateToRegister(data, at);
     } else if (b1 & 0b11111110 == 0b10100000 or b1 & 0b11111110 == 0b10100010) {
         return mov.movMemoryToAccumulator(data,at);
+    } else if (b1 == 0b10001110) {
+        return mov.movLike(data, at, .Mov, true, false, .Reverse);
+    } else if (b1 == 0b10001100) {
+        return mov.movLike(data, at, .Mov, true, false, .Normal);
     } else if (b1 & 0b11111100 == 0b00000000) {
-        return mov.movLike(data, at, .Add, true, false);
+        return mov.movLike(data, at, .Add, true, false, .No);
     } else if (b1 & 0b11111100 == 0b10000000) {
-        return mov.movLike(data, at, .Add, false, true);
+        return mov.movLike(data, at, .Add, false, true, .No);
     } else if (b1 & 0b11111110 == 0b00000100) {
         return mov.arithmeticImmediateFromAccumulator(data, at, .Add);
     } else if (b1 & 0b11111100 == 0b00101000) {
-        return mov.movLike(data, at, .Sub, true, false);
+        return mov.movLike(data, at, .Sub, true, false, .No);
     } else if (b1 & 0b11111110 == 0b00101100) {
         return mov.arithmeticImmediateFromAccumulator(data, at, .Sub);
     } else if (b1 & 0b11111100 == 0b00111000) {
-        return mov.movLike(data, at, .Cmp, true, false);
+        return mov.movLike(data, at, .Cmp, true, false, .No);
     } else if (b1 & 0b11111110 == 0b00111100) {
         return mov.arithmeticImmediateFromAccumulator(data, at, .Cmp);
     } else if (b1 == 0b01110100) {

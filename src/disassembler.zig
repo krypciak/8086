@@ -12,7 +12,7 @@ pub fn disassemble(allocator: std.mem.Allocator, data: []const u8, no_bits: bool
 
     if (!no_bits) try str_list.appendSlice("bits 16\n");
 
-    for (instructions, 0..)  |inst, i| {
+    for (instructions, 0..) |inst, i| {
         if (i != 0) {
             try str_list.append('\n');
         }

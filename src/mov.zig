@@ -35,7 +35,7 @@ pub const RegisterAddress = struct {
     wide: bool,
 
     pub fn toString(self: *const RegisterAddress, allocator: std.mem.Allocator) ![]const u8 {
-        return std.fmt.allocPrint(allocator, "{s}", .{getRegName(self.register, self.wide)});
+        return std.fmt.allocPrint(allocator, "{s}", .{getMovRegName(self.register, self.wide)});
     }
 
     pub fn getValue(self: *const RegisterAddress, state: *const SimulatorState) u16 {
@@ -57,9 +57,9 @@ pub const MemoryAddress = struct {
         if (self.reg1) |reg1| {
             const sign: u8 = if (self.displacement >= 0) '+' else '-';
 
-            const r1 = getRegName(reg1, true);
+            const r1 = getMovRegName(reg1, true);
             if (self.reg2) |reg2| {
-                const r2 = getRegName(reg2, true);
+                const r2 = getMovRegName(reg2, true);
                 if (self.displacement == 0) {
                     return try std.fmt.allocPrint(allocator, "[{s} + {s}]", .{ r1, r2 });
                 } else {
@@ -121,9 +121,9 @@ pub const AddressOrValue = union(AddressOrValue.Types) {
     }
 };
 
-fn getRegName(val: u8, w: bool) []const u8 {
+fn getMovRegName(val: u8, w: bool) []const u8 {
     const table_w0 = [8][]const u8{ "al", "cl", "dl", "bl", "ah", "ch", "dh", "bh" };
-    const table_w1 = [8][]const u8{ "ax", "cx", "dx", "bx", "sp", "bp", "si", "di" };
+    const table_w1 = [13][]const u8{ "ax", "cx", "dx", "bx", "sp", "bp", "si", "di", "ip", "es", "cs", "ss", "ds" };
 
     if (w) {
         return table_w1[val];
@@ -176,7 +176,7 @@ pub const MovLike = struct {
             .MemoryAddress => |*mem| mem.getValue(state),
         };
 
-        switch(self.to) {
+        switch (self.to) {
             .Value => unreachable,
             .RegisterAddress => |*reg| reg.setValue(state, fromValue),
             .MemoryAddress => |*mem| mem.setValue(state, fromValue),
@@ -184,15 +184,25 @@ pub const MovLike = struct {
     }
 };
 
-pub fn movLike(data: []const u8, at: usize, mov_type: MovLike.Type, first_type: bool, check_sign: bool) !Instruction {
+pub const MovLikeSegmentType = enum {
+    No,
+    Normal,
+    Reverse,
+};
+
+pub fn movLike(data: []const u8, at: usize, comptime mov_type: MovLike.Type, comptime first_type: bool, comptime check_sign: bool, comptime segment_registers: MovLikeSegmentType) !Instruction {
     const b1 = data[at];
     const b2 = data[at + 1];
 
-    const w: bool = (b1 & 0b00000001) == 0b00000001;
+    var w: bool = (b1 & 0b00000001) == 0b00000001;
 
     const mod: u8 = (b2 & 0b11000000) >> 6;
 
-    const reg = (b2 & 0b00111000) >> 3;
+    var reg = (b2 & 0b00111000) >> 3;
+    if (segment_registers != .No) {
+        reg = @intFromEnum(RegisterMemory.RegisterWord.ES) + reg;
+        w = true;
+    }
     const rm = b2 & 0b00000111;
 
     var new_mov_type: MovLike.Type = mov_type;
@@ -208,107 +218,117 @@ pub fn movLike(data: []const u8, at: usize, mov_type: MovLike.Type, first_type: 
         }
     }
 
+    var to: AddressOrValue = undefined;
+    var from: AddressOrValue = undefined;
+    var len: usize = undefined;
+
     if (mod == 0b11) { // register-to-register
+        to = .{ .RegisterAddress = .{ .register = rm, .wide = w } };
         if (check_sign) {
             const s: bool = (b1 & 0b00000010) == 0b00000010;
             std.debug.assert(s);
             const value = getValue(data, at + 2, false);
 
-            return Instruction{ .len = 3, .inst = .{ .MovLike = .{ .type = new_mov_type, .to = .{ .RegisterAddress = .{ .register = rm, .wide = w } }, .from = .{ .Value = .{ .value = @truncate(value) } } } } };
+            // return Instruction{ .len = 3, .inst = .{ .MovLike = .{ .type = new_mov_type, , .from = . } } };
+            from = .{ .Value = .{ .value = @truncate(value) } };
+            len = 3;
         } else {
             std.debug.assert(first_type);
 
-            return Instruction{ .len = 2, .inst = .{ .MovLike = .{ .type = new_mov_type, .to = .{ .RegisterAddress = .{ .register = rm, .wide = w } }, .from = .{ .RegisterAddress = .{ .register = reg, .wide = w } } } } };
-        }
-    }
-
-    const EMPTY = 100;
-    const register_table = [8][2]u8{
-        .{ 3, 6 },
-        .{ 3, 7 },
-        .{ 5, 6 },
-        .{ 5, 7 },
-        .{ 6, EMPTY },
-        .{ 7, EMPTY },
-        .{ 5, EMPTY },
-        .{ 3, EMPTY },
-    };
-    const r1 = register_table[rm][0];
-    const r2 = register_table[rm][1];
-
-    var to: AddressOrValue = undefined;
-    var from: AddressOrValue = undefined;
-
-    var len: usize = undefined;
-
-    if (first_type) to = .{ .RegisterAddress = .{ .register = reg, .wide = w } };
-    if (mod == 0b00) {
-        if (rm == 0b110) {
-            len = 4;
-            const value: u16 = getValue(data, at + 2, true);
-            from = .{ .MemoryAddress = .{ .displacement = @bitCast(value), .wide = w } };
-        } else {
+            // return Instruction{ .len = 2, .inst = .{ .MovLike = .{ .type = new_mov_type, .to = .{ .RegisterAddress = .{ .register = rm, .wide = w } }, .from = .{ .RegisterAddress = .{ .register = reg, .wide = w } } } } };
+            from = .{ .RegisterAddress = .{ .register = reg, .wide = w } };
             len = 2;
-            if (r2 == EMPTY) {
-                from = .{ .MemoryAddress = .{ .reg1 = r1, .wide = w } };
-            } else {
-                from = .{ .MemoryAddress = .{ .reg1 = r1, .reg2 = r2, .wide = w } };
-            }
         }
     } else {
-        const b3: u8 = data[at + 2];
-        var displacement: i16 = undefined;
-        if (mod == 0b01) {
-            displacement = @as(i8, @bitCast(@as(u8, b3)));
-            len = 3;
-        } else {
-            const b4: u16 = data[at + 3];
-            displacement = @bitCast((b4 << 8) + b3);
-            len = 4;
-        }
-        if (rm == 0b110) {
-            std.debug.assert(displacement == 0);
-            from = .{ .MemoryAddress = .{ .reg1 = r1, .wide = w } };
-        } else {
-            if (r2 == EMPTY) {
-                from = .{ .MemoryAddress = .{ .reg1 = r1, .displacement = displacement, .wide = w } };
+        const EMPTY = 100;
+        const register_table = [8][2]u8{
+            .{ 3, 6 },
+            .{ 3, 7 },
+            .{ 5, 6 },
+            .{ 5, 7 },
+            .{ 6, EMPTY },
+            .{ 7, EMPTY },
+            .{ 5, EMPTY },
+            .{ 3, EMPTY },
+        };
+        const r1 = register_table[rm][0];
+        const r2 = register_table[rm][1];
+
+        if (mod == 0b00) {
+            if (rm == 0b110) {
+                len = 4;
+                const value: u16 = getValue(data, at + 2, true);
+                from = .{ .MemoryAddress = .{ .displacement = @bitCast(value), .wide = w } };
             } else {
-                from = .{ .MemoryAddress = .{ .reg1 = r1, .reg2 = r2, .displacement = displacement, .wide = w } };
+                len = 2;
+                if (r2 == EMPTY) {
+                    from = .{ .MemoryAddress = .{ .reg1 = r1, .wide = w } };
+                } else {
+                    from = .{ .MemoryAddress = .{ .reg1 = r1, .reg2 = r2, .wide = w } };
+                }
             }
+        } else {
+            const b3: u8 = data[at + 2];
+            var displacement: i16 = undefined;
+            if (mod == 0b01) {
+                displacement = @as(i8, @bitCast(@as(u8, b3)));
+                len = 3;
+            } else {
+                const b4: u16 = data[at + 3];
+                displacement = @bitCast((b4 << 8) + b3);
+                len = 4;
+            }
+            if (rm == 0b110) {
+                std.debug.assert(displacement == 0);
+                from = .{ .MemoryAddress = .{ .reg1 = r1, .wide = w } };
+            } else {
+                if (r2 == EMPTY) {
+                    from = .{ .MemoryAddress = .{ .reg1 = r1, .displacement = displacement, .wide = w } };
+                } else {
+                    from = .{ .MemoryAddress = .{ .reg1 = r1, .reg2 = r2, .displacement = displacement, .wide = w } };
+                }
+            }
+        }
+
+        if (first_type) {
+            to = .{ .RegisterAddress = .{ .register = reg, .wide = w } };
+        } else {
+            to = from;
+
+            var value: u16 = undefined;
+            if (rm == 0b11) {
+                const b3: u16 = data[at + 2];
+                value = b3;
+                len = 3;
+            } else {
+                const s_flag: bool = (b1 & 0b00000010) == 0b00000010;
+                const wide = w and (!check_sign or !s_flag);
+
+                if (mod == 0b00 and rm != 0b110) {
+                    value = getValue(data, at + 2, wide);
+                    len = @max(len, 3 + @as(usize, @intFromBool(wide)));
+                } else {
+                    value = getValue(data, at + 4, wide);
+                    len = @max(len, 5 + @as(usize, @intFromBool(wide)));
+                }
+            }
+            from = .{ .Value = .{ .value = value } };
         }
     }
 
-    if (!first_type) {
-        to = from;
-
-        var value: u16 = undefined;
-        if (rm == 0b11) {
-            const b3: u16 = data[at + 2];
-            value = b3;
-            len = 3;
-        } else {
-            const s_flag: bool = (b1 & 0b00000010) == 0b00000010;
-            const wide = w and (!check_sign or !s_flag);
-
-            if (mod == 0b00 and rm != 0b110) {
-                value = getValue(data, at + 2, wide);
-                len = @max(len, 3 + @as(usize, @intFromBool(wide)));
-            } else {
-                value = getValue(data, at + 4, wide);
-                len = @max(len, 5 + @as(usize, @intFromBool(wide)));
-            }
+    if (first_type) {
+        const is_d_set = mod != 0b11 and (b1 & 0b00000010) != 0b00000010;
+        if (segment_registers == .Reverse or is_d_set) {
+            const temp = from;
+            from = to;
+            to = temp;
         }
-        from = .{ .Value = .{ .value = value } };
-    } else if ((b1 & 0b00000010) != 0b00000010) { // check d
-        const temp = from;
-        from = to;
-        to = temp;
     }
 
     return Instruction{ .len = len, .inst = .{ .MovLike = .{ .type = new_mov_type, .from = from, .to = to } } };
 }
 
-pub fn arithmeticImmediateFromAccumulator(data: []const u8, at: usize, movType: MovLike.Type) Instruction {
+pub fn arithmeticImmediateFromAccumulator(data: []const u8, at: usize, comptime movType: MovLike.Type) Instruction {
     const b1 = data[at];
     const w: bool = (b1 & 0b00000001) == 1;
     const value = getValue(data, at + 1, w);
@@ -415,6 +435,18 @@ test "disassemble mov accumulator-to-memory test" {
     try disassembler.assertDisassembly("mov [2554], ax");
     try disassembler.assertDisassembly("mov [15], ax");
     try disassembler.assertDisassembly("mov [15], al");
+}
+
+test "disassemble mov segment registers" {
+    try disassembler.assertDisassembly("mov es, ax");
+    try disassembler.assertDisassembly("mov cs, bx");
+    try disassembler.assertDisassembly("mov ss, cx");
+    try disassembler.assertDisassembly("mov ds, dx");
+
+    try disassembler.assertDisassembly("mov ax, es");
+    try disassembler.assertDisassembly("mov bx, cs");
+    try disassembler.assertDisassembly("mov cx, ss");
+    try disassembler.assertDisassembly("mov dx, ds");
 }
 
 test "disassemble mov multi-line" {
@@ -532,5 +564,62 @@ test "disassemble cmp" {
 }
 
 test "simulate mov" {
-    try simulator.assertSimulationToEqual("mov ax, 1", .{ .at = 1, .registers = .{ .data = [_]u8{ 1 } ++ [_]u8{0} ** 15 } });
+    try simulator.assertSimulationToEqual(
+        \\mov ax, 1
+        \\mov bx, 2
+        \\mov cx, 3
+        \\mov dx, 4
+        \\mov sp, 5
+        \\mov bp, 6
+        \\mov si, 7
+        \\mov di, 8
+    , .{ .at = 8, .registers = .{ .main = [_]u8{ 1, 0, 3, 0, 4, 0, 2, 0 }, .rest = [_]u16{ 5, 6, 7, 8 } ++ [_]u16{0} ** 5 } });
+
+    try simulator.assertSimulationToEqual(
+        \\mov ax, 1
+        \\mov bx, 2
+        \\mov cx, 3
+        \\mov dx, 4
+        \\
+        \\mov sp, ax
+        \\mov bp, bx
+        \\mov si, cx
+        \\mov di, dx
+        \\
+        \\mov dx, sp
+        \\mov cx, bp
+        \\mov bx, si
+        \\mov ax, di
+    , .{ .at = 12, .registers = .{ .main = [_]u8{ 4, 0, 2, 0, 1, 0, 3, 0 }, .rest = [_]u16{ 1, 2, 3, 4 } ++ [_]u16{0} ** 5 } });
+
+    try simulator.assertSimulationToEqual(
+        \\mov ax, 0x2222
+        \\mov bx, 0x4444
+        \\mov cx, 0x6666
+        \\mov dx, 0x8888
+        \\
+        \\mov ss, ax
+        \\mov ds, bx
+        \\mov es, cx
+        \\
+        \\mov al, 0x11
+        \\mov bh, 0x33
+        \\mov cl, 0x55
+        \\mov dh, 0x77
+        \\
+        \\mov ah, bl
+        \\mov cl, dh
+        \\
+        \\mov ss, ax
+        \\mov ds, bx
+        \\mov es, cx
+        \\
+        \\mov sp, ss
+        \\mov bp, ds
+        \\mov si, es
+        \\mov di, dx
+    , .{ .at = 20, .registers = .{
+        .main = [_]u8{ 0x11, 0x44, 0x77, 0x66, 0x88, 0x77, 0x44, 0x33 },
+        .rest = [_]u16{ 17425, 13124, 26231, 30600, 0, 26231, 0, 17425, 13124 },
+    } });
 }
