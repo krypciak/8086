@@ -3,6 +3,9 @@ const std = @import("std");
 const instruciton = @import("instruction.zig");
 const Instruction = instruciton.Instruction;
 
+const simulator = @import("simulator.zig");
+const SimulatorState = simulator.SimulatorState;
+
 pub const Jump = struct {
     pub const Type = enum {
         je,
@@ -61,8 +64,9 @@ pub const Jump = struct {
         return std.fmt.allocPrint(allocator, "{s} {d}", .{p1, self.offset});
     }
 
-    pub fn execute(self: *const Jump) !void {
+    pub fn execute(self: *const Jump, state: *SimulatorState) void {
         _ = self;
+        _ = state;
     }
 };
 

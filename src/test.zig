@@ -8,6 +8,7 @@ pub const debug = false;
 comptime {
     _ = @import("memory.zig");
     _ = @import("mov.zig");
+    _ = @import("simulator.zig");
 }
 
 fn spawnShellProcess(allocator: std.mem.Allocator, command: []const []const u8) ![]const u8 {
