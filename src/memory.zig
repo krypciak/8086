@@ -11,7 +11,7 @@ pub const RegisterMemory = struct {
         DH,
         BH,
     };
-    pub const RegisterWord = enum { AX, CX, DX, BX, sp, BP, SI, DI, IP, ES, CS, SS, DS };
+    pub const RegisterWord = enum { AX, CX, DX, BX, SP, BP, SI, DI, IP, ES, CS, SS, DS };
 
     main: [8]u8 = [_]u8{0} ** 8,
     rest: [9]u16 = [_]u16{0} ** 9,
@@ -71,6 +71,7 @@ pub const RegisterMemory = struct {
         if (wide) {
             self.setValueWord(@enumFromInt(register), value);
         } else {
+            std.debug.assert(value <= std.math.maxInt(u8));
             self.setValueByte(@enumFromInt(register), @truncate(value));
         }
     }
@@ -150,33 +151,13 @@ test "random access memory" {
 }
 
 pub const FlagsMemory = struct {
-    const Flags = enum(u8) {
-        Carry = 0,
-        Parity = 2,
-        Auxiliary = 4,
-        Zero = 6,
-        Sign = 7,
-        Trap = 8,
-        Interrupt = 9,
-        Direction = 10,
-        Overflow = 11,
-    };
-
-    flags: [16]bool = [_]bool{false} ** 16,
-
-    fn getFlag(self: *const FlagsMemory, flag: FlagsMemory.Flags) bool {
-        return self.flags[@intFromEnum(flag)];
-    }
-
-    fn setFlag(self: *FlagsMemory, flag: FlagsMemory.Flags, set: bool) void {
-        self.flags[@intFromEnum(flag)] = set;
-    }
+    carry: bool = false,
+    parity: bool = false,
+    auxiliary: bool = false,
+    zero: bool = false,
+    sign: bool = false,
+    trap: bool = false,
+    interrupt: bool = false,
+    direction: bool = false,
+    overflow: bool = false,
 };
-
-test "flags memory" {
-    var flags = FlagsMemory{};
-
-    try std.testing.expectEqual(false, flags.getFlag(.Interrupt));
-    flags.setFlag(.Auxiliary, true);
-    try std.testing.expectEqual(true, flags.getFlag(.Auxiliary));
-}

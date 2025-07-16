@@ -3,11 +3,11 @@ const expect = std.testing.expect;
 const process = std.process;
 const disassembler = @import("disassembler.zig");
 
-pub const debug = false;
+const debug = @import("main.zig").debug;
 
 comptime {
     _ = @import("memory.zig");
-    _ = @import("mov.zig");
+    _ = @import("mov_test.zig");
     _ = @import("simulator.zig");
 }
 
@@ -35,6 +35,8 @@ fn spawnShellProcess(allocator: std.mem.Allocator, command: []const []const u8) 
 }
 
 pub fn assemble(allocator: std.mem.Allocator, assembly: []const u8) ![]const u8 {
+    if (debug) std.debug.print("\n{s}\n", .{assembly});
+
     const tmp_file_path_raw = try spawnShellProcess(allocator, &[_][]const u8{ "mktemp", "--suffix", ".asm" });
     defer allocator.free(tmp_file_path_raw);
     const tmp_file_path = tmp_file_path_raw[0 .. tmp_file_path_raw.len - 1];

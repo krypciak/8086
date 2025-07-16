@@ -33,6 +33,7 @@ const disassembler = @import("disassembler.zig");
 const testing = @import("test.zig");
 
 pub fn assertSimulationToEqualWithState(assembly: []const u8, state: *SimulatorState, expected: SimulatorState) !void {
+    state.at = 0;
     const allocator = std.testing.allocator;
 
     const assembled = try testing.assemble(allocator, assembly);

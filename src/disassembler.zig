@@ -26,7 +26,6 @@ pub fn disassemble(allocator: std.mem.Allocator, data: []const u8, no_bits: bool
 }
 
 pub fn assembleAndDisassemble(allocator: std.mem.Allocator, assembly: []const u8) ![]const u8 {
-    if (debug) std.debug.print("\n{s}\n", .{assembly});
     const assembled = try testing.assemble(allocator, assembly);
     defer allocator.free(assembled);
 

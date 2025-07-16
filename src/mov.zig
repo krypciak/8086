@@ -119,6 +119,30 @@ pub const AddressOrValue = union(AddressOrValue.Types) {
             .MemoryAddress => |*mem| mem.toString(allocator),
         };
     }
+
+    pub fn getValue(self: *const AddressOrValue, state: *const SimulatorState) u16 {
+        return switch (self.*) {
+            .Value => |*v| v.value,
+            .RegisterAddress => |*reg| reg.getValue(state),
+            .MemoryAddress => |*mem| mem.getValue(state),
+        };
+    }
+
+    pub fn setValue(self: *const AddressOrValue, state: *SimulatorState, value: u16) void {
+        switch (self.*) {
+            .Value => unreachable,
+            .RegisterAddress => |*reg| reg.setValue(state, value),
+            .MemoryAddress => |*mem| mem.setValue(state, value),
+        }
+    }
+
+    pub fn isWide(self: *const AddressOrValue) bool {
+        return switch (self.*) {
+            .Value => unreachable,
+            .RegisterAddress => |*reg| reg.wide,
+            .MemoryAddress => |*mem| mem.wide,
+        };
+    }
 };
 
 fn getMovRegName(val: u8, w: bool) []const u8 {
@@ -169,17 +193,74 @@ pub const MovLike = struct {
         return std.fmt.allocPrint(allocator, "{s} {s}, {s}", .{ p1, p2, p3 });
     }
 
-    pub fn execute(self: *const MovLike, state: *SimulatorState) void {
-        const fromValue = switch (self.from) {
-            .Value => |*v| v.value,
-            .RegisterAddress => |*reg| reg.getValue(state),
-            .MemoryAddress => |*mem| mem.getValue(state),
+    fn performMathOperation(self: *const MovLike, comptime T: type, to_value: T, from_value: T, state: *SimulatorState) T {
+        var new_value: T = undefined;
+
+        const sign_mask = if (T == u16) 0x8000 else 0x80;
+
+        switch (self.type) {
+            .Add => {
+                const r = @addWithOverflow(to_value, from_value);
+                state.flags.carry = r[1] == 1;
+                state.flags.auxiliary = ((to_value & 0xF) + (from_value & 0xF)) > 0xF;
+                new_value = r[0];
+            },
+            .Sub, .Cmp => {
+                const r = @subWithOverflow(to_value, from_value);
+                state.flags.carry = r[1] == 1;
+                state.flags.auxiliary = (to_value & 0xF) < (from_value & 0xF);
+                new_value = r[0];
+            },
+            else => unreachable,
+        }
+
+        // std.debug.print("{}, type: {}, to_value: {}, from_value: {}, result: {}\n", .{ self.type, T, to_value, from_value, new_value });
+
+        state.flags.zero = new_value == 0;
+        state.flags.parity = @popCount(@as(u8, @truncate(new_value))) & 1 == 0;
+
+        state.flags.sign = new_value & sign_mask == sign_mask;
+        state.flags.overflow = blk: {
+            const sign_to = to_value & sign_mask;
+            const sign_from = from_value & sign_mask;
+            const sign_res = new_value & sign_mask;
+
+            switch (self.type) {
+                .Add => {
+                    break :blk (sign_to == sign_from) and (sign_res != sign_to);
+                },
+                .Sub, .Cmp => {
+                    break :blk (sign_to != sign_from) and (sign_res != sign_to);
+                },
+                else => break :blk false,
+            }
         };
 
-        switch (self.to) {
-            .Value => unreachable,
-            .RegisterAddress => |*reg| reg.setValue(state, fromValue),
-            .MemoryAddress => |*mem| mem.setValue(state, fromValue),
+        return new_value;
+    }
+
+    pub fn execute(self: *const MovLike, state: *SimulatorState) void {
+        const fromValue = self.from.getValue(state);
+
+        if (self.type == .Mov) {
+            self.to.setValue(state, fromValue);
+        } else {
+            const to_value = self.to.getValue(state);
+            const w = self.to.isWide();
+
+            const new_value = blk: {
+                if (w) {
+                    break :blk self.performMathOperation(u16, to_value, fromValue, state);
+                } else {
+                    std.debug.assert(to_value <= std.math.maxInt(u8));
+                    std.debug.assert(fromValue <= std.math.maxInt(u8));
+                    break :blk self.performMathOperation(u8, @truncate(to_value), @truncate(fromValue), state);
+                }
+            };
+
+            if (self.type != .Cmp) {
+                self.to.setValue(state, new_value);
+            }
         }
     }
 };
@@ -225,17 +306,21 @@ pub fn movLike(data: []const u8, at: usize, comptime mov_type: MovLike.Type, com
     if (mod == 0b11) { // register-to-register
         to = .{ .RegisterAddress = .{ .register = rm, .wide = w } };
         if (check_sign) {
-            const s: bool = (b1 & 0b00000010) == 0b00000010;
-            std.debug.assert(s);
-            const value = getValue(data, at + 2, false);
+            const s_flag: bool = (b1 & 0b00000010) == 0b00000010;
+            const wide = w and !s_flag;
 
-            // return Instruction{ .len = 3, .inst = .{ .MovLike = .{ .type = new_mov_type, , .from = . } } };
-            from = .{ .Value = .{ .value = @truncate(value) } };
-            len = 3;
+            const raw_value = getValue(data, at + 2, wide);
+
+            if (s_flag and w) {
+                from = .{ .Value = .{ .value = @bitCast(@as(i16, @as(i8, @bitCast(@as(u8, @truncate(raw_value)))))) } };
+                len = 3;
+            } else {
+                from = .{ .Value = .{ .value = @truncate(raw_value) } };
+                len = if (wide) 4 else 3;
+            }
         } else {
             std.debug.assert(first_type);
 
-            // return Instruction{ .len = 2, .inst = .{ .MovLike = .{ .type = new_mov_type, .to = .{ .RegisterAddress = .{ .register = rm, .wide = w } }, .from = .{ .RegisterAddress = .{ .register = reg, .wide = w } } } } };
             from = .{ .RegisterAddress = .{ .register = reg, .wide = w } };
             len = 2;
         }
@@ -362,264 +447,4 @@ pub fn movMemoryToAccumulator(data: []const u8, at: usize) Instruction {
     }
 
     return Instruction{ .len = 3, .inst = .{ .MovLike = .{ .type = .Mov, .to = to, .from = from } } };
-}
-
-const disassembler = @import("disassembler.zig");
-
-test "disassemble mov register-to-register" {
-    try disassembler.assertDisassembly("mov ax, bx");
-    try disassembler.assertDisassembly("mov si, bx");
-    try disassembler.assertDisassembly("mov dh, al");
-}
-
-test "disassemble mov 8-bit immediate-to-register" {
-    try disassembler.assertDisassembly("mov cl, 12");
-}
-
-test "disassemble mov 16-bit immediate-to-register" {
-    try disassembler.assertDisassembly("mov cx, 12");
-    try disassembler.assertDisassembly("mov dx, 3948");
-}
-
-test "disassemble mov source address calculation" {
-    try disassembler.assertDisassembly("mov dx, [si]");
-    try disassembler.assertDisassembly("mov dx, [di]");
-    try disassembler.assertDisassembly("mov dx, [bp]");
-    try disassembler.assertDisassembly("mov dx, [bx]");
-    try disassembler.assertDisassembly("mov bx, [bp + di]");
-    try disassembler.assertDisassembly("mov al, [bx + si]");
-}
-
-test "disassemble mov source address calculation plus 8-bit displacement" {
-    try disassembler.assertDisassembly("mov ah, [bx + si + 4]");
-}
-
-test "disassemble mov source address calculation plus 16-bit displacement" {
-    try disassembler.assertDisassembly("mov al, [bx + si + 4999]");
-}
-
-test "disassemble mov dest address calculation" {
-    try disassembler.assertDisassembly("mov [bx + di], cx");
-    try disassembler.assertDisassembly("mov [bp + si], cl");
-    try disassembler.assertDisassembly("mov [bp], ch");
-    try disassembler.assertDisassembly("mov [si + 1], cx");
-}
-
-test "disassemble mov signed displacements" {
-    try disassembler.assertDisassembly("mov ax, [bx + di - 37]");
-    try disassembler.assertDisassembly("mov [si - 300], cx");
-    try disassembler.assertDisassembly("mov dx, [bx - 32]");
-}
-
-test "disassemble mov explicit sizes" {
-    try disassembler.assertDisassembly("mov [bp + di], byte 7");
-    try disassembler.assertDisassembly("mov [di + 901], word 347");
-    try disassembler.assertDisassembly("mov [bx], byte 34");
-    try disassembler.assertDisassembly("mov [bp + si + 1000], word 29");
-    try disassembler.assertDisassembly("mov [4834], byte 29");
-    try disassembler.assertDisassembly("mov [4834], word 29");
-}
-
-test "disassemble mov direct address" {
-    try disassembler.assertDisassembly("mov bp, [5]");
-    try disassembler.assertDisassembly("mov bx, [3458]");
-}
-
-test "disassemble mov memory-to-accumulator test" {
-    try disassembler.assertDisassembly("mov ax, [2555]");
-    try disassembler.assertDisassembly("mov ax, [16]");
-    try disassembler.assertDisassembly("mov al, [16]");
-}
-
-test "disassemble mov accumulator-to-memory test" {
-    try disassembler.assertDisassembly("mov [2554], ax");
-    try disassembler.assertDisassembly("mov [15], ax");
-    try disassembler.assertDisassembly("mov [15], al");
-}
-
-test "disassemble mov segment registers" {
-    try disassembler.assertDisassembly("mov es, ax");
-    try disassembler.assertDisassembly("mov cs, bx");
-    try disassembler.assertDisassembly("mov ss, cx");
-    try disassembler.assertDisassembly("mov ds, dx");
-
-    try disassembler.assertDisassembly("mov ax, es");
-    try disassembler.assertDisassembly("mov bx, cs");
-    try disassembler.assertDisassembly("mov cx, ss");
-    try disassembler.assertDisassembly("mov dx, ds");
-}
-
-test "disassemble mov multi-line" {
-    try disassembler.assertDisassembly(
-        \\mov ax, bx
-        \\mov si, bx
-        \\mov dh, al
-        \\mov cl, 12
-        \\mov cx, 12
-        \\mov dx, 3948
-        \\mov dx, [si]
-        \\mov dx, [di]
-        \\mov dx, [bp]
-        \\mov dx, [bx]
-        \\mov bx, [bp + di]
-        \\mov al, [bx + si]
-        \\mov ah, [bx + si + 4]
-        \\mov al, [bx + si + 4999]
-        \\mov [bx + di], cx
-        \\mov [bp + si], cl
-        \\mov [bp], ch
-        \\mov [si + 1], cx
-        \\mov ax, [bx + di - 37]
-        \\mov [si - 300], cx
-        \\mov dx, [bx - 32]
-        \\mov [bp + di], byte 7
-        \\mov [di + 901], word 347
-        \\mov [bx], byte 34
-        \\mov [bp + si + 1000], word 29
-        \\mov [4834], byte 29
-        \\mov [4834], word 29
-        \\mov bp, [5]
-        \\mov bx, [3458]
-        \\mov ax, [2555]
-        \\mov ax, [16]
-        \\mov al, [16]
-        \\mov [2554], ax
-        \\mov [15], ax
-        \\mov [15], al
-    );
-}
-
-test "disassemble add" {
-    try disassembler.assertDisassembly("add bx, [bx + si]");
-    try disassembler.assertDisassembly("add bx, [bp]");
-    try disassembler.assertDisassembly("add si, 2");
-    try disassembler.assertDisassembly("add bp, 2");
-    try disassembler.assertDisassembly("add cx, 8");
-    try disassembler.assertDisassembly("add bx, [bp]");
-    try disassembler.assertDisassembly("add cx, [bx + 2]");
-    try disassembler.assertDisassembly("add bh, [bp + si + 4]");
-    try disassembler.assertDisassembly("add di, [bp + di + 6]");
-    try disassembler.assertDisassembly("add [bx + si], bx");
-    try disassembler.assertDisassembly("add [bp], bx");
-    try disassembler.assertDisassembly("add [bx + 2], cx");
-    try disassembler.assertDisassembly("add [bp + si + 4], bh");
-    try disassembler.assertDisassembly("add [bp + di + 6], di");
-    try disassembler.assertDisassembly("add [bx], byte 34");
-    try disassembler.assertDisassembly("add [bp + si + 1000], word 29");
-    try disassembler.assertDisassembly("add ax, [bp]");
-    try disassembler.assertDisassembly("add al, [bx + si]");
-    try disassembler.assertDisassembly("add ax, bx");
-    try disassembler.assertDisassembly("add al, ah");
-    try disassembler.assertDisassembly("add ax, 1000");
-    try disassembler.assertDisassembly("add al, 9");
-}
-
-test "disassemble sub" {
-    try disassembler.assertDisassembly("sub bx, [bx + si]");
-    try disassembler.assertDisassembly("sub bx, [bp]");
-    try disassembler.assertDisassembly("sub si, 2");
-    try disassembler.assertDisassembly("sub bp, 2");
-    try disassembler.assertDisassembly("sub cx, 8");
-    try disassembler.assertDisassembly("sub cx, [bx + 2]");
-    try disassembler.assertDisassembly("sub bh, [bp + si + 4]");
-    try disassembler.assertDisassembly("sub di, [bp + di + 6]");
-    try disassembler.assertDisassembly("sub [bx + si], bx");
-    try disassembler.assertDisassembly("sub [bp], bx");
-    try disassembler.assertDisassembly("sub [bx + 2], cx");
-    try disassembler.assertDisassembly("sub [bp + si + 4], bh");
-    try disassembler.assertDisassembly("sub [bp + di + 6], di");
-    try disassembler.assertDisassembly("sub [bx], byte 34");
-    try disassembler.assertDisassembly("sub [bx + di], word 29");
-    try disassembler.assertDisassembly("sub ax, [bp]");
-    try disassembler.assertDisassembly("sub al, [bx + si]");
-    try disassembler.assertDisassembly("sub ax, bx");
-    try disassembler.assertDisassembly("sub al, ah");
-    try disassembler.assertDisassembly("sub ax, 1000");
-    try disassembler.assertDisassembly("sub al, 9");
-}
-
-test "disassemble cmp" {
-    try disassembler.assertDisassembly("cmp bx, [bx + si]");
-    try disassembler.assertDisassembly("cmp bx, [bp]");
-    try disassembler.assertDisassembly("cmp si, 2");
-    try disassembler.assertDisassembly("cmp bp, 2");
-    try disassembler.assertDisassembly("cmp cx, 8");
-    try disassembler.assertDisassembly("cmp bx, [bp]");
-    try disassembler.assertDisassembly("cmp cx, [bx + 2]");
-    try disassembler.assertDisassembly("cmp bh, [bp + si + 4]");
-    try disassembler.assertDisassembly("cmp di, [bp + di + 6]");
-    try disassembler.assertDisassembly("cmp [bx + si], bx");
-    try disassembler.assertDisassembly("cmp [bp], bx");
-    try disassembler.assertDisassembly("cmp [bx + 2], cx");
-    try disassembler.assertDisassembly("cmp [bp + si + 4], bh");
-    try disassembler.assertDisassembly("cmp [bp + di + 6], di");
-    try disassembler.assertDisassembly("cmp [bx], byte 34");
-    try disassembler.assertDisassembly("cmp [4834], word 29");
-    try disassembler.assertDisassembly("cmp ax, [bp]");
-    try disassembler.assertDisassembly("cmp al, [bx + si]");
-    try disassembler.assertDisassembly("cmp ax, bx");
-    try disassembler.assertDisassembly("cmp al, ah");
-    try disassembler.assertDisassembly("cmp ax, 1000");
-    try disassembler.assertDisassembly("cmp al, 9");
-}
-
-test "simulate mov" {
-    try simulator.assertSimulationToEqual(
-        \\mov ax, 1
-        \\mov bx, 2
-        \\mov cx, 3
-        \\mov dx, 4
-        \\mov sp, 5
-        \\mov bp, 6
-        \\mov si, 7
-        \\mov di, 8
-    , .{ .at = 8, .registers = .{ .main = [_]u8{ 1, 0, 3, 0, 4, 0, 2, 0 }, .rest = [_]u16{ 5, 6, 7, 8 } ++ [_]u16{0} ** 5 } });
-
-    try simulator.assertSimulationToEqual(
-        \\mov ax, 1
-        \\mov bx, 2
-        \\mov cx, 3
-        \\mov dx, 4
-        \\
-        \\mov sp, ax
-        \\mov bp, bx
-        \\mov si, cx
-        \\mov di, dx
-        \\
-        \\mov dx, sp
-        \\mov cx, bp
-        \\mov bx, si
-        \\mov ax, di
-    , .{ .at = 12, .registers = .{ .main = [_]u8{ 4, 0, 2, 0, 1, 0, 3, 0 }, .rest = [_]u16{ 1, 2, 3, 4 } ++ [_]u16{0} ** 5 } });
-
-    try simulator.assertSimulationToEqual(
-        \\mov ax, 0x2222
-        \\mov bx, 0x4444
-        \\mov cx, 0x6666
-        \\mov dx, 0x8888
-        \\
-        \\mov ss, ax
-        \\mov ds, bx
-        \\mov es, cx
-        \\
-        \\mov al, 0x11
-        \\mov bh, 0x33
-        \\mov cl, 0x55
-        \\mov dh, 0x77
-        \\
-        \\mov ah, bl
-        \\mov cl, dh
-        \\
-        \\mov ss, ax
-        \\mov ds, bx
-        \\mov es, cx
-        \\
-        \\mov sp, ss
-        \\mov bp, ds
-        \\mov si, es
-        \\mov di, dx
-    , .{ .at = 20, .registers = .{
-        .main = [_]u8{ 0x11, 0x44, 0x77, 0x66, 0x88, 0x77, 0x44, 0x33 },
-        .rest = [_]u16{ 17425, 13124, 26231, 30600, 0, 26231, 0, 17425, 13124 },
-    } });
 }
