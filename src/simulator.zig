@@ -9,18 +9,20 @@ const FlagsMemory = memory.FlagsMemory;
 const debug = @import("main.zig").debug;
 
 pub const SimulatorState = struct {
-    at: usize = 0,
     registers: RegisterMemory = .{},
     ram: RandomAccessMemory = .{},
     flags: FlagsMemory = .{},
 };
 
 pub fn simulate(allocator: std.mem.Allocator, data: []const u8, state: *SimulatorState) !void {
-    const instructions = try instruction_parser.parseBinary(allocator, data);
-    defer allocator.free(instructions);
+    const result = try instruction_parser.parseBinary(allocator, data);
+    defer result.deinit(allocator);
 
-    while (state.at < instructions.len) : (state.at += 1) {
-        const inst = instructions[state.at];
+    while (state.registers.ip < data.len) {
+        const inst_index = result.instructionMappings[state.registers.ip];
+        const inst = result.instructions[inst_index];
+
+        state.registers.ip += inst.len;
 
         switch (inst.inst) {
             .MovLike => |*o| o.execute(state),
@@ -33,7 +35,7 @@ const disassembler = @import("disassembler.zig");
 const testing = @import("test.zig");
 
 pub fn assertSimulationToEqualWithState(assembly: []const u8, state: *SimulatorState, expected: SimulatorState) !void {
-    state.at = 0;
+    state.registers.ip = 0;
     const allocator = std.testing.allocator;
 
     const assembled = try testing.assemble(allocator, assembly);

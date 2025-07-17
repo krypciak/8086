@@ -11,10 +11,11 @@ pub const RegisterMemory = struct {
         DH,
         BH,
     };
-    pub const RegisterWord = enum { AX, CX, DX, BX, SP, BP, SI, DI, IP, ES, CS, SS, DS };
+    pub const RegisterWord = enum { AX, CX, DX, BX, SP, BP, SI, DI, ES, CS, SS, DS };
 
     main: [8]u8 = [_]u8{0} ** 8,
-    rest: [9]u16 = [_]u16{0} ** 9,
+    rest: [8]u16 = [_]u16{0} ** 8,
+    ip: u16 = 0,
 
     // these funcions are for setting registers AX - SP,
     // ES CS SS DS are accessed and set manualy

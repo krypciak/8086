@@ -147,7 +147,7 @@ pub const AddressOrValue = union(AddressOrValue.Types) {
 
 fn getMovRegName(val: u8, w: bool) []const u8 {
     const table_w0 = [8][]const u8{ "al", "cl", "dl", "bl", "ah", "ch", "dh", "bh" };
-    const table_w1 = [13][]const u8{ "ax", "cx", "dx", "bx", "sp", "bp", "si", "di", "ip", "es", "cs", "ss", "ds" };
+    const table_w1 = [12][]const u8{ "ax", "cx", "dx", "bx", "sp", "bp", "si", "di", "es", "cs", "ss", "ds" };
 
     if (w) {
         return table_w1[val];
@@ -301,7 +301,7 @@ pub fn movLike(data: []const u8, at: usize, comptime mov_type: MovLike.Type, com
 
     var to: AddressOrValue = undefined;
     var from: AddressOrValue = undefined;
-    var len: usize = undefined;
+    var len: u16 = undefined;
 
     if (mod == 0b11) { // register-to-register
         to = .{ .RegisterAddress = .{ .register = rm, .wide = w } };
@@ -391,10 +391,10 @@ pub fn movLike(data: []const u8, at: usize, comptime mov_type: MovLike.Type, com
 
                 if (mod == 0b00 and rm != 0b110) {
                     value = getValue(data, at + 2, wide);
-                    len = @max(len, 3 + @as(usize, @intFromBool(wide)));
+                    len = @max(len, 3 + @as(u16, @intFromBool(wide)));
                 } else {
                     value = getValue(data, at + 4, wide);
-                    len = @max(len, 5 + @as(usize, @intFromBool(wide)));
+                    len = @max(len, 5 + @as(u16, @intFromBool(wide)));
                 }
             }
             from = .{ .Value = .{ .value = value } };

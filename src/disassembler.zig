@@ -5,14 +5,14 @@ const testing = @import("test.zig");
 const debug = @import("main.zig").debug;
 
 pub fn disassemble(allocator: std.mem.Allocator, data: []const u8, no_bits: bool) ![]const u8 {
-    const instructions = try instruction_parser.parseBinary(allocator, data);
-    defer allocator.free(instructions);
+    const result = try instruction_parser.parseBinary(allocator, data);
+    defer result.deinit(allocator);
 
     var str_list = std.ArrayList(u8).init(allocator);
 
     if (!no_bits) try str_list.appendSlice("bits 16\n");
 
-    for (instructions, 0..) |inst, i| {
+    for (result.instructions, 0..) |inst, i| {
         if (i != 0) {
             try str_list.append('\n');
         }

@@ -20,7 +20,7 @@ pub const Instruction = struct {
         Jump,
     };
 
-    len: usize,
+    len: u16,
     inst: InstructionUnion,
 };
 

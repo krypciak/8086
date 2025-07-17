@@ -43,7 +43,7 @@ fn nextInstruction(data: []const u8, at: usize) !Instruction {
     } else if (b1 & 0b11110000 == 0b10110000) {
         return mov.movImmediateToRegister(data, at);
     } else if (b1 & 0b11111110 == 0b10100000 or b1 & 0b11111110 == 0b10100010) {
-        return mov.movMemoryToAccumulator(data,at);
+        return mov.movMemoryToAccumulator(data, at);
     } else if (b1 == 0b10001110) {
         return mov.movLike(data, at, .Mov, true, false, .Reverse);
     } else if (b1 == 0b10001100) {
@@ -105,14 +105,31 @@ fn nextInstruction(data: []const u8, at: usize) !Instruction {
     } else unreachable;
 }
 
-pub fn parseBinary(allocator: std.mem.Allocator, data: []const u8) ![]const Instruction {
-    var list = ArrayList(Instruction).init(allocator);
+pub const ParseBinaryResult = struct {
+    instructions: []const Instruction,
+    instructionMappings: []u16,
 
-    var at: usize = 0;
+    pub fn deinit(self: *const ParseBinaryResult, allocator: std.mem.Allocator) void {
+        allocator.free(self.instructions);
+        allocator.free(self.instructionMappings);
+    }
+};
+
+pub fn parseBinary(allocator: std.mem.Allocator, data: []const u8) !ParseBinaryResult {
+    var list = ArrayList(Instruction).init(allocator);
+    var mappings = try allocator.alloc(u16, data.len);
+
+    var at: u16 = 0;
     while (at < data.len) {
         const inst = try instruction_parser.nextInstruction(data, at);
+        std.debug.assert(list.items.len <= std.math.maxInt(u16));
+        mappings[at] = @truncate(list.items.len);
         try list.append(inst);
         at += inst.len;
     }
-    return list.toOwnedSlice();
+
+    return .{
+        .instructions = try list.toOwnedSlice(),
+        .instructionMappings = mappings,
+    };
 }

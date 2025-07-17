@@ -227,7 +227,7 @@ test "simulate mov" {
         \\mov bp, 6
         \\mov si, 7
         \\mov di, 8
-    , .{ .at = 8, .registers = .{ .main = [_]u8{ 1, 0, 3, 0, 4, 0, 2, 0 }, .rest = [_]u16{ 5, 6, 7, 8 } ++ [_]u16{0} ** 5 } });
+    , .{ .registers = .{ .ip = 24, .main = [_]u8{ 1, 0, 3, 0, 4, 0, 2, 0 }, .rest = [_]u16{ 5, 6, 7, 8 } ++ [_]u16{0} ** 4 } });
 
     try assertSimulationToEqual(
         \\mov ax, 1
@@ -244,7 +244,7 @@ test "simulate mov" {
         \\mov cx, bp
         \\mov bx, si
         \\mov ax, di
-    , .{ .at = 12, .registers = .{ .main = [_]u8{ 4, 0, 2, 0, 1, 0, 3, 0 }, .rest = [_]u16{ 1, 2, 3, 4 } ++ [_]u16{0} ** 5 } });
+    , .{ .registers = .{ .ip = 28, .main = [_]u8{ 4, 0, 2, 0, 1, 0, 3, 0 }, .rest = [_]u16{ 1, 2, 3, 4 } ++ [_]u16{0} ** 4 } });
 
     try assertSimulationToEqual(
         \\mov ax, 0x2222
@@ -272,9 +272,10 @@ test "simulate mov" {
         \\mov bp, ds
         \\mov si, es
         \\mov di, dx
-    , .{ .at = 20, .registers = .{
+    , .{ .registers = .{
+        .ip = 44,
         .main = [_]u8{ 0x11, 0x44, 0x77, 0x66, 0x88, 0x77, 0x44, 0x33 },
-        .rest = [_]u16{ 17425, 13124, 26231, 30600, 0, 26231, 0, 17425, 13124 },
+        .rest = [_]u16{ 17425, 13124, 26231, 30600, 26231, 0, 17425, 13124 },
     } });
 }
 
@@ -282,17 +283,17 @@ test "simulate sub" {
     try assertSimulationToEqual(
         \\mov ax, 50
         \\sub ax, 50
-    , .{ .at = 2, .flags = .{ .zero = true, .parity = true } });
+    , .{ .registers = .{ .ip = 6 }, .flags = .{ .zero = true, .parity = true } });
 
     try assertSimulationToEqual(
         \\mov ax, 51
         \\sub ax, 50
-    , .{ .at = 2, .registers = .{ .main = [_]u8{1} ++ [_]u8{0} ** 7 }, .flags = .{} });
+    , .{ .registers = .{ .ip = 6, .main = [_]u8{1} ++ [_]u8{0} ** 7 }, .flags = .{} });
 
     try assertSimulationToEqual(
         \\mov al, 0
         \\sub al, 1
-    , .{ .at = 2, .registers = .{ .main = [_]u8{255} ++ [_]u8{0} ** 7 }, .flags = .{ .sign = true, .parity = true, .carry = true, .auxiliary = true } });
+    , .{ .registers = .{ .ip = 4, .main = [_]u8{255} ++ [_]u8{0} ** 7 }, .flags = .{ .sign = true, .parity = true, .carry = true, .auxiliary = true } });
 
     try assertSimulationToEqual(
         \\mov bx, -4093
@@ -306,28 +307,27 @@ test "simulate sub" {
         \\add bp, 1027
         \\sub bp, 2026
     , .{
-        .at = 8,
-        .registers = .{ .main = [_]u8{ 0, 0, 0x01, 0x0f, 0, 0, 0x02, 0xe1 }, .rest = [_]u16{998} ++ [_]u16{0} ** 8 },
+        .registers = .{ .ip = 24, .main = [_]u8{ 0, 0, 0x01, 0x0f, 0, 0, 0x02, 0xe1 }, .rest = [_]u16{998} ++ [_]u16{0} ** 7 },
         .flags = .{ .zero = true, .parity = true },
     });
 
     var state = SimulatorState{};
-    try assertSimulationToEqualWithState("add bx, 30000", &state, .{ .at = 1, .registers = .{ .main = [_]u8{ 0, 0, 0, 0, 0, 0, 0x30, 0x75 } }, .flags = .{ .parity = true } });
-    try assertSimulationToEqualWithState("add bx, 10000", &state, .{ .at = 1, .registers = .{ .main = [_]u8{ 0, 0, 0, 0, 0, 0, 0x40, 0x9c } }, .flags = .{ .sign = true, .overflow = true } });
-    try assertSimulationToEqualWithState("sub bx, 5000", &state, .{ .at = 1, .registers = .{ .main = [_]u8{ 0, 0, 0, 0, 0, 0, 0xb8, 0x88 } }, .flags = .{ .parity = true, .sign = true, .auxiliary = true } });
-    try assertSimulationToEqualWithState("sub bx, 5000", &state, .{ .at = 1, .registers = .{ .main = [_]u8{ 0, 0, 0, 0, 0, 0, 0x30, 0x75 } }, .flags = .{ .parity = true, .overflow = true } });
+    try assertSimulationToEqualWithState("add bx, 30000", &state, .{ .registers = .{ .ip = 4, .main = [_]u8{ 0, 0, 0, 0, 0, 0, 0x30, 0x75 } }, .flags = .{ .parity = true } });
+    try assertSimulationToEqualWithState("add bx, 10000", &state, .{ .registers = .{ .ip = 4, .main = [_]u8{ 0, 0, 0, 0, 0, 0, 0x40, 0x9c } }, .flags = .{ .sign = true, .overflow = true } });
+    try assertSimulationToEqualWithState("sub bx, 5000", &state, .{ .registers = .{ .ip = 4, .main = [_]u8{ 0, 0, 0, 0, 0, 0, 0xb8, 0x88 } }, .flags = .{ .parity = true, .sign = true, .auxiliary = true } });
+    try assertSimulationToEqualWithState("sub bx, 5000", &state, .{ .registers = .{ .ip = 4, .main = [_]u8{ 0, 0, 0, 0, 0, 0, 0x30, 0x75 } }, .flags = .{ .parity = true, .overflow = true } });
 
-    try assertSimulationToEqualWithState("mov bx, 1", &state, .{ .at = 1, .registers = .{ .main = [_]u8{ 0, 0, 0, 0, 0, 0, 0x01, 0x00 } }, .flags = .{ .parity = true, .overflow = true } });
-    try assertSimulationToEqualWithState("mov cx, 100", &state, .{ .at = 1, .registers = .{ .main = [_]u8{ 0, 0, 0x64, 0, 0, 0, 0x01, 0x00 } }, .flags = .{ .parity = true, .overflow = true } });
-    try assertSimulationToEqualWithState("add bx, cx", &state, .{ .at = 1, .registers = .{ .main = [_]u8{ 0, 0, 0x64, 0, 0, 0, 0x65, 0x00 } }, .flags = .{ .parity = true } });
+    try assertSimulationToEqualWithState("mov bx, 1", &state, .{ .registers = .{ .ip = 3, .main = [_]u8{ 0, 0, 0, 0, 0, 0, 0x01, 0x00 } }, .flags = .{ .parity = true, .overflow = true } });
+    try assertSimulationToEqualWithState("mov cx, 100", &state, .{ .registers = .{ .ip = 3, .main = [_]u8{ 0, 0, 0x64, 0, 0, 0, 0x01, 0x00 } }, .flags = .{ .parity = true, .overflow = true } });
+    try assertSimulationToEqualWithState("add bx, cx", &state, .{ .registers = .{ .ip = 2, .main = [_]u8{ 0, 0, 0x64, 0, 0, 0, 0x65, 0x00 } }, .flags = .{ .parity = true } });
 
-    try assertSimulationToEqualWithState("mov dx, 10", &state, .{ .at = 1, .registers = .{ .main = [_]u8{ 0, 0, 0x64, 0, 0x0a, 0, 0x65, 0x00 } }, .flags = .{ .parity = true } });
-    try assertSimulationToEqualWithState("sub cx, dx", &state, .{ .at = 1, .registers = .{ .main = [_]u8{ 0, 0, 0x5a, 0, 0x0a, 0, 0x65, 0x00 } }, .flags = .{ .parity = true, .auxiliary = true } });
+    try assertSimulationToEqualWithState("mov dx, 10", &state, .{ .registers = .{ .ip = 3, .main = [_]u8{ 0, 0, 0x64, 0, 0x0a, 0, 0x65, 0x00 } }, .flags = .{ .parity = true } });
+    try assertSimulationToEqualWithState("sub cx, dx", &state, .{ .registers = .{ .ip = 2, .main = [_]u8{ 0, 0, 0x5a, 0, 0x0a, 0, 0x65, 0x00 } }, .flags = .{ .parity = true, .auxiliary = true } });
 
-    try assertSimulationToEqualWithState("add bx, 40000", &state, .{ .at = 1, .registers = .{ .main = [_]u8{ 0, 0, 0x5a, 0, 0x0a, 0, 0xa5, 0x9c } }, .flags = .{ .parity = true, .sign = true } });
-    try assertSimulationToEqualWithState("add cx, -90", &state, .{ .at = 1, .registers = .{ .main = [_]u8{ 0, 0, 0x00, 0, 0x0a, 0, 0xa5, 0x9c } }, .flags = .{ .parity = true, .auxiliary = true, .carry = true, .zero = true } });
+    try assertSimulationToEqualWithState("add bx, 40000", &state, .{ .registers = .{ .ip = 4, .main = [_]u8{ 0, 0, 0x5a, 0, 0x0a, 0, 0xa5, 0x9c } }, .flags = .{ .parity = true, .sign = true } });
+    try assertSimulationToEqualWithState("add cx, -90", &state, .{ .registers = .{ .ip = 3, .main = [_]u8{ 0, 0, 0x00, 0, 0x0a, 0, 0xa5, 0x9c } }, .flags = .{ .parity = true, .auxiliary = true, .carry = true, .zero = true } });
 
-    try assertSimulationToEqualWithState("mov sp, 99", &state, .{ .at = 1, .registers = .{ .main = [_]u8{ 0, 0, 0x00, 0, 0x0a, 0, 0xa5, 0x9c }, .rest = [_]u16{0x63} ++ [_]u16{0} ** 8 }, .flags = .{ .parity = true, .auxiliary = true, .carry = true, .zero = true } });
-    try assertSimulationToEqualWithState("mov bp, 98", &state, .{ .at = 1, .registers = .{ .main = [_]u8{ 0, 0, 0x00, 0, 0x0a, 0, 0xa5, 0x9c }, .rest = [_]u16{ 0x63, 0x62 } ++ [_]u16{0} ** 7 }, .flags = .{ .parity = true, .auxiliary = true, .carry = true, .zero = true } });
-    try assertSimulationToEqualWithState("cmp bp, sp", &state, .{ .at = 1, .registers = .{ .main = [_]u8{ 0, 0, 0x00, 0, 0x0a, 0, 0xa5, 0x9c }, .rest = [_]u16{ 0x63, 0x62 } ++ [_]u16{0} ** 7 }, .flags = .{ .parity = true, .auxiliary = true, .carry = true, .sign = true } });
+    try assertSimulationToEqualWithState("mov sp, 99", &state, .{ .registers = .{ .ip = 3, .main = [_]u8{ 0, 0, 0x00, 0, 0x0a, 0, 0xa5, 0x9c }, .rest = [_]u16{0x63} ++ [_]u16{0} ** 7 }, .flags = .{ .parity = true, .auxiliary = true, .carry = true, .zero = true } });
+    try assertSimulationToEqualWithState("mov bp, 98", &state, .{ .registers = .{ .ip = 3, .main = [_]u8{ 0, 0, 0x00, 0, 0x0a, 0, 0xa5, 0x9c }, .rest = [_]u16{ 0x63, 0x62 } ++ [_]u16{0} ** 6 }, .flags = .{ .parity = true, .auxiliary = true, .carry = true, .zero = true } });
+    try assertSimulationToEqualWithState("cmp bp, sp", &state, .{ .registers = .{ .ip = 2, .main = [_]u8{ 0, 0, 0x00, 0, 0x0a, 0, 0xa5, 0x9c }, .rest = [_]u16{ 0x63, 0x62 } ++ [_]u16{0} ** 6 }, .flags = .{ .parity = true, .auxiliary = true, .carry = true, .sign = true } });
 }
