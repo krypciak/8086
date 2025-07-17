@@ -1,4 +1,7 @@
 const std = @import("std");
+const ArrayList = std.ArrayList;
+
+const debug = @import("main.zig").debug;
 
 pub const RegisterMemory = struct {
     pub const RegisterByte = enum {
@@ -10,8 +13,32 @@ pub const RegisterMemory = struct {
         CH,
         DH,
         BH,
+
+        pub fn toString(self: *const RegisterByte) []const u8 {
+            const table_w0 = [8][]const u8{ "al", "cl", "dl", "bl", "ah", "ch", "dh", "bh" };
+            return table_w0[@intFromEnum(self.*)];
+        }
     };
-    pub const RegisterWord = enum { AX, CX, DX, BX, SP, BP, SI, DI, ES, CS, SS, DS };
+    pub const RegisterWord = enum {
+        AX,
+        CX,
+        DX,
+        BX,
+        SP,
+        BP,
+        SI,
+        DI,
+        ES,
+        CS,
+        SS,
+        DS,
+
+        pub fn toString(self: *const RegisterWord) []const u8 {
+            const table_w1 = [12][]const u8{ "ax", "cx", "dx", "bx", "sp", "bp", "si", "di", "es", "cs", "ss", "ds" };
+
+            return table_w1[@intFromEnum(self.*)];
+        }
+    };
 
     main: [8]u8 = [_]u8{0} ** 8,
     rest: [8]u16 = [_]u16{0} ** 8,
@@ -33,11 +60,11 @@ pub const RegisterMemory = struct {
         return val * 2;
     }
 
-    fn getValueByte(self: *const RegisterMemory, register: RegisterByte) u16 {
+    pub fn getValueByte(self: *const RegisterMemory, register: RegisterByte) u16 {
         return self.main[indexByte(register)];
     }
 
-    fn getValueWord(self: *const RegisterMemory, register: RegisterWord) u16 {
+    pub fn getValueWord(self: *const RegisterMemory, register: RegisterWord) u16 {
         if (@intFromEnum(register) >= 4) {
             return self.rest[@intFromEnum(register) - 4];
         } else {
@@ -54,11 +81,15 @@ pub const RegisterMemory = struct {
         };
     }
 
-    fn setValueByte(self: *RegisterMemory, register: RegisterByte, value: u8) void {
+    pub fn setValueByte(self: *RegisterMemory, register: RegisterByte, value: u8) void {
+        if (debug) std.debug.print(" {s}:0x{x}->0x{x}", .{ register.toString(), self.getValueByte(register), value });
+
         self.main[indexByte(register)] = value;
     }
 
-    fn setValueWord(self: *RegisterMemory, register: RegisterWord, value: u16) void {
+    pub fn setValueWord(self: *RegisterMemory, register: RegisterWord, value: u16) void {
+        if (debug) std.debug.print(" {s}:0x{x}->0x{x}", .{ register.toString(), self.getValueWord(register), value });
+
         if (@intFromEnum(register) >= 4) {
             self.rest[@intFromEnum(register) - 4] = value;
         } else {
@@ -161,4 +192,20 @@ pub const FlagsMemory = struct {
     interrupt: bool = false,
     direction: bool = false,
     overflow: bool = false,
+
+    pub fn toString(self: *const FlagsMemory, allocator: std.mem.Allocator) ![]const u8 {
+        var list = try ArrayList(u8).initCapacity(allocator, 8);
+
+        if (self.carry) try list.append('C');
+        if (self.parity) try list.append('P');
+        if (self.auxiliary) try list.append('A');
+        if (self.zero) try list.append('Z');
+        if (self.sign) try list.append('S');
+        if (self.trap) try list.append('T');
+        if (self.interrupt) try list.append('I');
+        if (self.direction) try list.append('D');
+        if (self.overflow) try list.append('O');
+
+        return list.toOwnedSlice();
+    }
 };

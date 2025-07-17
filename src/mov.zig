@@ -146,13 +146,10 @@ pub const AddressOrValue = union(AddressOrValue.Types) {
 };
 
 fn getMovRegName(val: u8, w: bool) []const u8 {
-    const table_w0 = [8][]const u8{ "al", "cl", "dl", "bl", "ah", "ch", "dh", "bh" };
-    const table_w1 = [12][]const u8{ "ax", "cx", "dx", "bx", "sp", "bp", "si", "di", "es", "cs", "ss", "ds" };
-
     if (w) {
-        return table_w1[val];
+        return @as(RegisterMemory.RegisterWord, @enumFromInt(val)).toString();
     } else {
-        return table_w0[val];
+        return @as(RegisterMemory.RegisterByte, @enumFromInt(val)).toString();
     }
 }
 

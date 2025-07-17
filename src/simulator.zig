@@ -22,11 +22,32 @@ pub fn simulate(allocator: std.mem.Allocator, data: []const u8, state: *Simulato
         const inst_index = result.instructionMappings[state.registers.ip];
         const inst = result.instructions[inst_index];
 
+        if (debug) {
+            const str = try inst.inst.toString(allocator);
+            defer allocator.free(str);
+            std.debug.print("\n{s} ;", .{str});
+        }
+
+        const prev_ip = state.registers.ip;
+        const prev_flags = state.flags;
+
         state.registers.ip += inst.len;
 
         switch (inst.inst) {
             .MovLike => |*o| o.execute(state),
             .Jump => |*o| o.execute(state),
+        }
+
+        if (debug) {
+            std.debug.print(" ip:0x{x}->0x{x}", .{ prev_ip, state.registers.ip });
+
+            if (!std.meta.eql(prev_flags, state.flags)) {
+                const prev_str = try prev_flags.toString(allocator);
+                const curr_str = try state.flags.toString(allocator);
+                defer allocator.free(prev_str);
+                defer allocator.free(curr_str);
+                std.debug.print(" flags:{s}->{s}", .{ prev_str, curr_str });
+            }
         }
     }
 }
