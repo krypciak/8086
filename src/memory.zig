@@ -125,7 +125,8 @@ test "register memory" {
 }
 
 pub const RandomAccessMemory = struct {
-    data: [1024 * 1024]u8 = [_]u8{0} ** (1024 * 1024),
+    pub const memory_size = 1024 * 1024;
+    data: [memory_size]u8 = [_]u8{0} ** (memory_size),
 
     fn indexByte(address: u16) u16 {
         return address;
@@ -149,10 +150,14 @@ pub const RandomAccessMemory = struct {
     }
 
     fn setValueByte(self: *RandomAccessMemory, address: u16, value: u8) void {
+        if (debug) std.debug.print(" [{d}]:0x{x}->0x{x}", .{ address, self.getValueByte(address), value });
+        
         self.data[indexByte(address)] = value;
     }
 
     fn setValueWord(self: *RandomAccessMemory, address: u16, value: u16) void {
+        if (debug) std.debug.print(" [{d}]:0x{x}->0x{x}", .{ address, self.getValueWord(address), value });
+
         const index = indexWord(address);
         self.data[index] = @as(u8, @truncate(value));
         self.data[index + 1] = @as(u8, @truncate(value >> 8));

@@ -118,6 +118,7 @@ pub const ParseBinaryResult = struct {
 pub fn parseBinary(allocator: std.mem.Allocator, data: []const u8) !ParseBinaryResult {
     var list = ArrayList(Instruction).init(allocator);
     var mappings = try allocator.alloc(u16, data.len);
+    @memset(mappings, 0xFF);
 
     var at: u16 = 0;
     while (at < data.len) {
@@ -126,6 +127,10 @@ pub fn parseBinary(allocator: std.mem.Allocator, data: []const u8) !ParseBinaryR
         mappings[at] = @truncate(list.items.len);
         try list.append(inst);
         at += inst.len;
+    }
+    if (at != data.len) {
+        std.debug.print("at: {d}, data.len: {d}\n", .{ at, data.len });
+        std.debug.assert(false);
     }
 
     return .{

@@ -49,17 +49,17 @@ pub const RegisterAddress = struct {
 
 pub const MemoryAddress = struct {
     displacement: i16 = 0,
-    reg1: ?u8 = null,
-    reg2: ?u8 = null,
+    reg1: ?RegisterMemory.RegisterWord = null,
+    reg2: ?RegisterMemory.RegisterWord = null,
     wide: bool,
 
     pub fn toString(self: *const MemoryAddress, allocator: std.mem.Allocator) ![]const u8 {
         if (self.reg1) |reg1| {
             const sign: u8 = if (self.displacement >= 0) '+' else '-';
 
-            const r1 = getMovRegName(reg1, true);
+            const r1 = reg1.toString();
             if (self.reg2) |reg2| {
-                const r2 = getMovRegName(reg2, true);
+                const r2 = reg2.toString();
                 if (self.displacement == 0) {
                     return try std.fmt.allocPrint(allocator, "[{s} + {s}]", .{ r1, r2 });
                 } else {
@@ -80,14 +80,14 @@ pub const MemoryAddress = struct {
     fn calculateAddress(self: *const MemoryAddress, state: *const SimulatorState) u16 {
         var address: i16 = self.displacement;
         if (self.reg1) |reg1| {
-            address += @intCast(state.registers.getValue(reg1, true));
+            address += @intCast(state.registers.getValueWord(reg1));
 
             if (self.reg2) |reg2| {
-                address += @intCast(state.registers.getValue(reg2, true));
+                address += @intCast(state.registers.getValueWord(reg2));
             }
         }
-        std.debug.assert(self.displacement >= 0);
-        return @intCast(self.displacement);
+        std.debug.assert(address >= 0);
+        return @intCast(address);
     }
 
     pub fn getValue(self: *const MemoryAddress, state: *const SimulatorState) u16 {
@@ -322,16 +322,16 @@ pub fn movLike(data: []const u8, at: usize, comptime mov_type: MovLike.Type, com
             len = 2;
         }
     } else {
-        const EMPTY = 100;
-        const register_table = [8][2]u8{
-            .{ 3, 6 },
-            .{ 3, 7 },
-            .{ 5, 6 },
-            .{ 5, 7 },
-            .{ 6, EMPTY },
-            .{ 7, EMPTY },
-            .{ 5, EMPTY },
-            .{ 3, EMPTY },
+        const EMPTY = RegisterMemory.RegisterWord.SS;
+        const register_table = [8][2]RegisterMemory.RegisterWord{
+            .{ .BX, .SI },
+            .{ .BX, .DI },
+            .{ .BP, .SI },
+            .{ .BP, .DI },
+            .{ .SI, EMPTY },
+            .{ .DI, EMPTY },
+            .{ .BP, EMPTY },
+            .{ .BX, EMPTY },
         };
         const r1 = register_table[rm][0];
         const r2 = register_table[rm][1];
@@ -386,12 +386,18 @@ pub fn movLike(data: []const u8, at: usize, comptime mov_type: MovLike.Type, com
                 const s_flag: bool = (b1 & 0b00000010) == 0b00000010;
                 const wide = w and (!check_sign or !s_flag);
 
-                if (mod == 0b00 and rm != 0b110) {
-                    value = getValue(data, at + 2, wide);
-                    len = @max(len, 3 + @as(u16, @intFromBool(wide)));
+                if (mod == 0b00) {
+                    if (rm == 0b110) {
+                        value = getValue(data, at + 4, wide);
+                        len = 5 + @as(u16, @intFromBool(wide));
+                    } else {
+                        value = getValue(data, at + 2, wide);
+                        len = 3 + @as(u16, @intFromBool(wide));
+                    }
                 } else {
-                    value = getValue(data, at + 4, wide);
-                    len = @max(len, 5 + @as(u16, @intFromBool(wide)));
+                    const mod_offset: u16 = if (mod == 0b01) 1 else 2;
+                    value = getValue(data, at + 2 + mod_offset, wide);
+                    len = 2 + mod_offset + 1 + @as(u16, @intFromBool(wide));
                 }
             }
             from = .{ .Value = .{ .value = value } };

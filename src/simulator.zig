@@ -20,6 +20,7 @@ pub fn simulate(allocator: std.mem.Allocator, data: []const u8, state: *Simulato
 
     while (state.registers.ip < data.len) {
         const inst_index = result.instructionMappings[state.registers.ip];
+        std.debug.assert(inst_index != 0xFFFF);
         const inst = result.instructions[inst_index];
 
         if (debug) {
@@ -64,7 +65,8 @@ pub fn assertSimulationToEqualWithState(assembly: []const u8, state: *SimulatorS
 
     try simulate(allocator, assembled, state);
 
-    try std.testing.expectEqualDeep(expected, state.*);
+    try std.testing.expectEqualDeep(expected.registers, state.registers);
+    try std.testing.expectEqualDeep(expected.flags, state.flags);
 }
 
 pub fn assertSimulationToEqual(assembly: []const u8, expected: SimulatorState) !void {

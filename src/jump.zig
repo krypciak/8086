@@ -182,7 +182,7 @@ test "simulator ip register" {
         \\add cx, 1000
         \\mov bx, 2000
         \\sub cx, bx
-    , .{ .registers = .{ .ip = 14, .main = [_]u8{ 0, 0, 0xe0, 0xfc, 0, 0, 0xd0, 0x07 } }, .flags = .{ .carry = true, .sign = true } });
+    , .{ .registers = .{ .ip = 14, .main = .{ 0, 0, 0xe0, 0xfc, 0, 0, 0xd0, 0x07 } }, .flags = .{ .carry = true, .sign = true } });
 
     try simulator.assertSimulationToEqual(
         \\mov cx, 3
