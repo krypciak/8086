@@ -103,6 +103,11 @@ pub const Jump = struct {
             state.registers.ip +%= @bitCast(@as(i16, self.offset));
         }
     }
+
+    pub fn estimateCycles(self: *const Jump) ?u8 {
+        _ = self;
+        return null;
+    }
 };
 
 pub fn conditionalJump(data: []const u8, at: usize, jumpType: Jump.Type) !Instruction {

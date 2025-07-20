@@ -34,10 +34,7 @@ pub fn simulate(allocator: std.mem.Allocator, data: []const u8, state: *Simulato
 
         state.registers.ip += inst.len;
 
-        switch (inst.inst) {
-            .MovLike => |*o| o.execute(state),
-            .Jump => |*o| o.execute(state),
-        }
+        inst.inst.execute(state);
 
         if (debug) {
             std.debug.print(" ip:0x{x}->0x{x}", .{ prev_ip, state.registers.ip });

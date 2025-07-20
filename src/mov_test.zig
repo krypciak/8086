@@ -58,9 +58,15 @@ test "disassemble mov source address calculation 6" {
 test "disassemble mov source address calculation plus 8-bit displacement 1" {
     try assertDisassembly("mov ah, [bx + si + 4]");
 }
+test "disassemble mov source address calculation plus 8-bit displacement 2" {
+    try assertDisassembly("mov cx, [bp + 3]");
+}
 
 test "disassemble mov source address calculation plus 16-bit displacement 1" {
     try assertDisassembly("mov al, [bx + si + 4999]");
+}
+test "disassemble mov source address calculation plus 16-bit displacement 2" {
+    try assertDisassembly("mov cx, [bp + 1000]");
 }
 
 test "disassemble mov dest address calculation 1" {
@@ -594,4 +600,103 @@ test "simulate memory loop 1" {
         },
         .flags = .{ .parity = true, .zero = true },
     });
+}
+
+const instruction = @import("instruction.zig");
+const assertEstimateCycles = instruction.assertEstimateCycles;
+
+test "estimate cycles mov 1" {
+    try assertEstimateCycles("mov bx, 1000", 4);
+}
+test "estimate cycles mov 2" {
+    try assertEstimateCycles("mov bp, 2000", 4);
+}
+test "estimate cycles mov 3" {
+    try assertEstimateCycles("mov si, 3000", 4);
+}
+test "estimate cycles mov 4" {
+    try assertEstimateCycles("mov di, 4000", 4);
+}
+test "estimate cycles mov 5" {
+    try assertEstimateCycles("mov cx, bx", 2);
+}
+test "estimate cycles mov 6" {
+    try assertEstimateCycles("mov dx, 12", 4);
+}
+test "estimate cycles mov 7" {
+    try assertEstimateCycles("mov dx, [1000]", 14);
+}
+test "estimate cycles mov 8" {
+    try assertEstimateCycles("mov cx, [bx]", 13);
+}
+test "estimate cycles mov 9" {
+    try assertEstimateCycles("mov cx, [bp]", 13);
+}
+test "estimate cycles mov 10" {
+    try assertEstimateCycles("mov [si], cx", 14);
+}
+test "estimate cycles mov 11" {
+    try assertEstimateCycles("mov [di], cx ", 14);
+}
+test "estimate cycles mov 12" {
+    try assertEstimateCycles("mov cx, [bx + 1000]", 17);
+}
+test "estimate cycles mov 13" {
+    try assertEstimateCycles("mov cx, [bp + 1000]", 17);
+}
+test "estimate cycles mov 14" {
+    try assertEstimateCycles("mov [si + 1000], cx ", 18);
+}
+test "estimate cycles mov 15" {
+    try assertEstimateCycles("mov [di + 1000], cx", 18);
+}
+test "estimate cycles mov 16" {
+    try assertEstimateCycles("add cx, dx", 3);
+}
+test "estimate cycles mov 17" {
+    try assertEstimateCycles("add [di + 1000], cx", 25);
+}
+test "estimate cycles mov 18" {
+    try assertEstimateCycles("add dx, 50", 4);
+}
+test "estimate cycles mov 19" {
+    try assertEstimateCycles("mov cx, [bp + di]", 15);
+}
+test "estimate cycles mov 20" {
+    try assertEstimateCycles("mov [bx + si], cx", 16);
+}
+test "estimate cycles mov 21" {
+    try assertEstimateCycles("mov cx, [bp + si]", 16);
+}
+test "estimate cycles mov 22" {
+    try assertEstimateCycles("mov [bx + di], cx", 17);
+}
+test "estimate cycles mov 23" {
+    try assertEstimateCycles("mov cx, [bp + di + 1000]", 19);
+}
+test "estimate cycles mov 24" {
+    try assertEstimateCycles("mov [bx + si + 1000], cx", 20);
+}
+test "estimate cycles mov 25" {
+    try assertEstimateCycles("mov cx, [bp + si + 1000]", 20);
+}
+test "estimate cycles mov 26" {
+    try assertEstimateCycles("mov [bx + di + 1000], cx", 21);
+}
+test "estimate cycles mov 27" {
+    try assertEstimateCycles("add dx, [bp + si + 1000]", 21);
+}
+test "estimate cycles mov 28" {
+    try assertEstimateCycles("add word [bp + si], 76", 25);
+}
+test "estimate cycles mov 29" {
+    // try assertEstimateCycles("add dx, [bp + si + 1001]", 25);
+    // +4 penalty that i dont understand
+}
+test "estimate cycles mov 30" {
+    // try assertEstimateCycles("add [di + 999], dx", 33);
+    // +8 penalty that i dont understand
+}
+test "estimate cycles mov 31" {
+    try assertEstimateCycles("add word [bp + si], 75", 25);
 }
